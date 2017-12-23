@@ -18,7 +18,9 @@
 #define SERVOMAX 460
 
 
-
+//<155 propeller braking?
+//354 minimum speed
+//460 maximum speed
 
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 Adafruit_GPS GPS(&mySerial);
