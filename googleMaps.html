@@ -12,15 +12,23 @@
   <div id="map"></div>
    <script>
      function initMap() {
-       var uluru = {lat: -25.363, lng: 131.044};
+       var uluru = {lat: 42.24021040494719, lng: -82.98437118530273};
        var map = new google.maps.Map(document.getElementById('map'), {
-         zoom: 4,
+         zoom: 16,
          center: uluru
        });
        var marker = new google.maps.Marker({
          position: uluru,
          map: map
        });
+       google.maps.event.addListener(map, 'click', function(e){
+         console.log('Event:', e.latLng.toString());
+         var marker = new google.maps.Marker({
+           position: e.latLng,
+           map: map
+         });
+       })
+       //google.maps.event.trigger(map, 'click', 'heyo')
      }
    </script>
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA3UT37IuWcgTQ8oGwCho4oUxfIaF6PkLU&callback=initMap"

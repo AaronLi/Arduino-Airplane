@@ -7,7 +7,6 @@
 #include <RH_RF95.h>
 #include <Adafruit_GPS.h>
 
-// Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
 #define RFM95_CS 8
 #define RFM95_RST 4
@@ -16,8 +15,8 @@
 #define mySerial Serial1
 #define SERVOMIN 90 //Should be pretty accurate
 #define SERVOMAX 460
-
-
+#define AILERONMAX 294
+#define AILERONMIN 237
 //<155 propeller braking?
 //354 minimum speed
 //460 maximum speed
@@ -46,7 +45,11 @@ void writeServo(int channel,int angle){
   int writeAngle = map(angle,0,180,SERVOMIN,SERVOMAX);
   pwmDriver.setPWM(channel,0,writeAngle);
 }
-
+void writeAileron(int angle){
+  int writeAngle = map(angle,0,180,AILERONMIN, AILERONMAX);
+  pwmDriver.setPWM(0, 0, writeAngle+18);
+  pwmDriver.setPWM(2, 0, writeAngle);
+}
 
 
 
@@ -124,9 +127,7 @@ void loop()
     
     if (rf95.recv(buf, &len))
     {
-      writeServo(0,((int)buf[0])-32);
-      writeServo(2,((int)buf[0])-32);
-      writeServo(4,((int)buf[1])-32);
+      writeAileron(((int)buf[1])-32);
       if(SHOW_RADIO){
         Serial.println(rf95.lastRssi(), DEC);
       }

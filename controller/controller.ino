@@ -1,11 +1,4 @@
-// LoRa 9x_TX
-// -*- mode: C++ -*-
-// Example sketch showing how to create a simple messaging client (transmitter)
-// with the RH_RF95 class. RH_RF95 class does not provide for addressing or
-// reliability, so you should only use RH_RF95 if you do not need the higher
-// level messaging abilities.
-// It is designed to work with the other example LoRa9x_RX
-
+ //The current radio controller
 #include <SPI.h>
 #include <RH_RF95.h>
 
@@ -15,7 +8,7 @@
 
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
-#define PACKET_SIZE 3
+#define PACKET_SIZE 4
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 void setup() 
@@ -62,9 +55,10 @@ void loop()
 {
     // Send a message to rf95_server
     char radiopacket[PACKET_SIZE];
-    radiopacket[0] = (char)(map(analogRead(0),0,1023,0,180)+32);
-    radiopacket[1] = (char)(map(analogRead(1),0,1023,0,180)+32);
-    Serial.print(analogRead(0));Serial.print(" ");Serial.println(analogRead(1));
+    radiopacket[0]='0';
+    radiopacket[1] = (char)(map(analogRead(0),0,1023,0,180)+32);//roll, ailerons
+    //radiopacket[2] = (char)(map(analogRead(1),0,1023,0,180)+32);//pitch, elevons
+    //radiopacket[3] = (char)(map(analogRead(2),0,1023,0,180)+32);//throttle, ESC
     //Serial.println(((int)radiopacket[0])-75);
     rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
     // Now wait for a reply

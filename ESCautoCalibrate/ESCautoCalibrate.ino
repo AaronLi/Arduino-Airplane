@@ -2,7 +2,7 @@
 Adafruit_PWMServoDriver servos = Adafruit_PWMServoDriver();
 #define SERVOMIN 90 //Should be pretty accurate
 #define SERVOMAX 460
-#define SAFE_MODE true
+#define SAFE_MODE false
 void calibrateESC(){
   Serial.println("Calibration started, setting max");
   servos.setPWM(6,0,SERVOMAX); 
@@ -24,6 +24,7 @@ void setup() {
   pinMode(13,INPUT_PULLUP);
   servos.setPWMFreq(50);
   Serial.begin(9600);
+  //while(!Serial);
   Serial.println("Beginning ESC callibration");
   calibrateESC();
 
