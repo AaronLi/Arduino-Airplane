@@ -17,6 +17,8 @@
 #define SERVOMAX 460
 #define AILERONMAX 294
 #define AILERONMIN 237
+#define ELEVATORMAX 0
+#define ELEVATORMIN 0
 //<155 propeller braking?
 //354 minimum speed
 //460 maximum speed
@@ -29,16 +31,21 @@ Adafruit_PWMServoDriver pwmDriver = Adafruit_PWMServoDriver();
 uint32_t timer = millis();
 uint32_t senseTimer = millis();
 uint32_t ledTimer = millis();
+uint32_t throttleTimer = millis();
 bool ledState = false;
 int sensorHz = 10;
-
+int motorSpeeds[] = {90,155,354,360}; // testing values for safety purposes
+int throttleTarget = 0;
+int currentThrottle = 0;
 #define SHOW_ORIENTATION false
-#define SHOW_GPS true
+#define SHOW_GPS false
 #define SHOW_RADIO false
 
 #define LED 13
-
-
+#define LEFT_AILERON 0
+#define RIGHT_AILERON 2
+#define ELEVATOR 4
+#define THROTTLE 6
 
 
 void writeServo(int channel,int angle){
@@ -47,10 +54,29 @@ void writeServo(int channel,int angle){
 }
 void writeAileron(int angle){
   int writeAngle = map(angle,0,180,AILERONMIN, AILERONMAX);
-  pwmDriver.setPWM(0, 0, writeAngle+18);
-  pwmDriver.setPWM(2, 0, writeAngle);
+  pwmDriver.setPWM(LEFT_AILERON, 0, writeAngle+18);
+  pwmDriver.setPWM(RIGHT_AILERON, 0, writeAngle);
+}
+void writeElevator(int angle){
+  int writeAngle = map(angle,0,180,ELEVATORMIN, ELEVATORMAX);
+  pwmDriver.setPWM(ELEVATOR,0,writeAngle);
+}
+void calibrateESC(){
+  //Serial.println("Calibration started, setting max");
+  pwmDriver.setPWM(THROTTLE,0,SERVOMAX); 
+  delay(8000);
+  //Serial.println("ESC should have max now, setting min");
+  pwmDriver.setPWM(THROTTLE,0,SERVOMIN);
+  delay(3000);
+  //Serial.println("ESC should have min now");
+  notifyUser();
+  //Serial.println("Servo callibration complete! Please set throttle to 0");
+  //while(analogRead(0)>0);
+  //Wait for throttle to be set to 0
 }
 
+void notifyUser(){
+}
 
 
 void setupSensor()
@@ -63,14 +89,8 @@ void setupSensor()
   
   // 2.) Set the magnetometer sensitivity
   lsm.setupMag(lsm.LSM9DS1_MAGGAIN_4GAUSS);
-  //lsm.setupMag(lsm.LSM9DS1_MAGGAIN_8GAUSS);
-  //lsm.setupMag(lsm.LSM9DS1_MAGGAIN_12GAUSS);
-  //lsm.setupMag(lsm.LSM9DS1_MAGGAIN_16GAUSS);
-
   // 3.) Setup the gyroscope
   lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_245DPS);
-  //lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_500DPS);
-  //lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_2000DPS);
 }
 
 void setup() 
@@ -116,6 +136,7 @@ void setup()
   setupSensor();
   pwmDriver.begin();
   pwmDriver.setPWMFreq(50);
+  calibrateESC();
 }
 
 void loop()
@@ -127,12 +148,35 @@ void loop()
     
     if (rf95.recv(buf, &len))
     {
-      writeAileron(((int)buf[1])-32);
-      if(SHOW_RADIO){
-        Serial.println(rf95.lastRssi(), DEC);
+      uint8_t mType = buf[0]>>3;
+      Serial.print("MessageType: ");
+      Serial.print(mType);
+      switch(mType){
+        case 0: //will be changed once full program is outlined
+          uint8_t throttleValue = (buf[0]&6)>>1;
+          uint8_t rollValue = ((buf[0]&1)<<7)+(buf[1]>>1);
+          uint8_t pitchValue = ((buf[1]&1)<<7)+(buf[2]>>1);
+          uint8_t peripheral1Type = buf[2]&1;
+          uint8_t peripheral2Type = (buf[3]&4)>>2;
+          throttleTarget = motorSpeeds[throttleValue];
+          writeAileron(rollValue);
+          writeElevator(pitchValue);
+          Serial.print(", Throttle: ");
+          Serial.print(throttleValue);
+          Serial.print(", PWM: ");
+          Serial.print(motorSpeeds[throttleValue]);
+          Serial.print(", Pitch: ");
+          Serial.print(pitchValue);
+          Serial.print(", Roll: ");
+          Serial.println(rollValue);
+          break;
       }
-      uint8_t data[] = "dmfg";
-      rf95.send(data, sizeof(data));
+      Serial.println();
+      if(SHOW_RADIO){
+          Serial.println(rf95.lastRssi(), DEC);
+      }
+      //uint8_t data[] = "dmfg";
+      //rf95.send(data, sizeof(data));
     }
     else
     {
@@ -189,8 +233,20 @@ void loop()
     Serial.print("Roll: "); Serial.print(orientation.roll); Serial.print(" Pitch: ");Serial.print(orientation.pitch);Serial.print(" Yaw: ");Serial.println(orientation.heading);
     }
   }
+  if(throttleTimer>millis()) throttleTimer = millis();
+  if(millis()-throttleTimer>5){
+    throttleTimer = millis();
+    if(currentThrottle<throttleTarget){
+      currentThrottle++;
+    }
+    else if(currentThrottle>throttleTarget){
+      currentThrottle--;
+    }
+  }
+  writeServo(THROTTLE, currentThrottle);
+  Serial.println(currentThrottle);
   if(ledTimer>millis()) ledTimer = millis();
-  if(millis()-ledTimer>1000){
+  if(millis()-ledTimer>1000){//blink led to show program is running
     ledTimer = millis();
     digitalWrite(LED, ledState);
     ledState = !ledState;
