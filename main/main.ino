@@ -243,7 +243,7 @@ void loop()
       currentThrottle--;
     }
   }
-  writeServo(THROTTLE, currentThrottle);
+  pwmDriver.setPWM(THROTTLE, 0, currentThrottle);
   Serial.println(currentThrottle);
   if(ledTimer>millis()) ledTimer = millis();
   if(millis()-ledTimer>1000){//blink led to show program is running
