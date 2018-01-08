@@ -15,10 +15,10 @@
 #define mySerial Serial1
 #define SERVOMIN 90 //Should be pretty accurate
 #define SERVOMAX 460
-#define AILERONMAX 294
-#define AILERONMIN 237
-#define ELEVATORMAX 0
-#define ELEVATORMIN 0
+#define AILERONMAX 317
+#define AILERONMIN 265
+#define ELEVATORMAX 176
+#define ELEVATORMIN 95
 //<155 propeller braking?
 //354 minimum speed
 //460 maximum speed
@@ -44,7 +44,7 @@ int currentThrottle = 0;
 #define LED 13
 #define LEFT_AILERON 0
 #define RIGHT_AILERON 2
-#define ELEVATOR 4
+#define ELEVATOR 15
 #define THROTTLE 6
 
 
@@ -54,8 +54,8 @@ void writeServo(int channel,int angle){
 }
 void writeAileron(int angle){
   int writeAngle = map(angle,0,180,AILERONMIN, AILERONMAX);
-  pwmDriver.setPWM(LEFT_AILERON, 0, writeAngle+18);
-  pwmDriver.setPWM(RIGHT_AILERON, 0, writeAngle);
+  pwmDriver.setPWM(LEFT_AILERON, 0, writeAngle);
+  pwmDriver.setPWM(RIGHT_AILERON, 0, writeAngle+10);
 }
 void writeElevator(int angle){
   int writeAngle = map(angle,0,180,ELEVATORMIN, ELEVATORMAX);
@@ -244,7 +244,7 @@ void loop()
     }
   }
   pwmDriver.setPWM(THROTTLE, 0, currentThrottle);
-  Serial.println(currentThrottle);
+  //Serial.println(currentThrottle);
   if(ledTimer>millis()) ledTimer = millis();
   if(millis()-ledTimer>1000){//blink led to show program is running
     ledTimer = millis();
