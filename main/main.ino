@@ -7,18 +7,36 @@
 #include <RH_RF95.h>
 #include <Adafruit_GPS.h>
 
+
+
+//Config
+#define SHOW_ORIENTATION 0
+#define SHOW_GPS 0
+#define SHOW_RADIO 0
+#define WAIT_FOR_SERIAL 0
+
+//IO setup
 #define RF95_FREQ 915.0
 #define RFM95_CS 8
 #define RFM95_RST 4
 #define RFM95_INT 3
-
 #define mySerial Serial1
+
+//Servo Limits
 #define SERVOMIN 90 //Should be pretty accurate
 #define SERVOMAX 460
 #define AILERONMAX 317
 #define AILERONMIN 265
 #define ELEVATORMAX 176
 #define ELEVATORMIN 95
+
+//Outputs
+#define LED 13
+#define LEFT_AILERON 0
+#define RIGHT_AILERON 2
+#define ELEVATOR 15
+#define THROTTLE 6
+
 //<155 propeller braking?
 //354 minimum speed
 //460 maximum speed
@@ -43,15 +61,6 @@ int sensorHz = 10;
 int motorSpeeds[] = {90,155,354,360}; // testing values for safety purposes
 int throttleTarget = 0;
 int currentThrottle = 0;
-#define SHOW_ORIENTATION false
-#define SHOW_GPS false
-#define SHOW_RADIO false
-
-#define LED 13
-#define LEFT_AILERON 0
-#define RIGHT_AILERON 2
-#define ELEVATOR 15
-#define THROTTLE 6
 
 
 void writeServo(int channel,int angle){
@@ -104,8 +113,9 @@ void setup()
   pinMode(LED, OUTPUT);     
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
-
-  //while (!Serial); // wait for serial if needed
+  #if WAIT_FOR_SERIAL == 1
+  while (!Serial); // wait for serial if needed
+  #endif
   Serial.begin(115200);
   //~~~~~~~~~~~~~~~~~~~~~~~~START GPS~~~~~~~~~~~~~~~~~~~~
   GPS.begin(9600);
@@ -136,6 +146,7 @@ void setup()
   rf95.setTxPower(23, false);
   //~~~~~~~~~~START SENSOR ARRAY~~~~~~~~~~~~~~
   Serial.println("Starting sensor array...");
+  delay(100);
   if (!lsm.begin()){
     Serial.println("Oops ... unable to initialize the LSM9DS1. Check your wiring!");
     while (1);
@@ -146,6 +157,7 @@ void setup()
   pwmDriver.setPWMFreq(50);
   Serial.println("Calibrating ESC...");
   calibrateESC();
+  Serial.println("ESC calibrated");
   safetyTimer = millis();
 }
 
@@ -159,8 +171,10 @@ void loop()
     if (rf95.recv(buf, &len))
     {
       uint8_t mType = buf[0]>>3;
+      #if SHOW_RADIO == 1
       Serial.print("MessageType: ");
       Serial.print(mType);
+      #endif
       switch(mType){
         case 0: //will be changed once full program is outlined
           uint8_t throttleValue = (buf[0]&6)>>1;
@@ -172,6 +186,7 @@ void loop()
           writeAileron(rollValue);
           writeElevator(pitchValue);
           safetyTimer = millis();
+          #if SHOW_RADIO == 1
           Serial.print(", Throttle: ");
           Serial.print(throttleValue);
           Serial.print(", PWM: ");
@@ -180,13 +195,13 @@ void loop()
           Serial.print(pitchValue);
           Serial.print(", Roll: ");
           Serial.println(rollValue);
-      
+          #endif
           break;
       }
+      #if SHOW_RADIO == 1
       Serial.println();
-      if(SHOW_RADIO){
-          Serial.println(rf95.lastRssi(), DEC);
-      }
+      Serial.println(rf95.lastRssi(), DEC);
+      #endif
     }
     else
     {
@@ -208,29 +223,29 @@ void loop()
     else{
       if (millis() - timer > 2000 && GPS.fix) { 
         timer = millis(); // reset the timer
-        if(SHOW_GPS){
-          Serial.print("\nTime: ");
-          Serial.print(GPS.hour, DEC); Serial.print(':');
-          Serial.print(GPS.minute, DEC); Serial.print(':');
-          Serial.print(GPS.seconds, DEC); Serial.print('.');
-          Serial.println(GPS.milliseconds);
-          Serial.print("Date: ");
-          Serial.print(GPS.day, DEC); Serial.print('/');
-          Serial.print(GPS.month, DEC); Serial.print("/20");
-          Serial.println(GPS.year, DEC);
-          Serial.print("Fix: "); Serial.print((int)GPS.fix);
-          Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
-          Serial.print("Location: ");
-          Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
-          Serial.print(", "); 
-          Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
-          
-          Serial.print("Speed (knots): "); Serial.println(GPS.speed);
-          Serial.print("Angle: "); Serial.println(GPS.angle);
-          Serial.print("Altitude: "); Serial.println(GPS.altitude);
-          Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
-          Serial.println();
-        }
+        #if SHOW_GPS == 1
+        Serial.print("\nTime: ");
+        Serial.print(GPS.hour, DEC); Serial.print(':');
+        Serial.print(GPS.minute, DEC); Serial.print(':');
+        Serial.print(GPS.seconds, DEC); Serial.print('.');
+        Serial.println(GPS.milliseconds);
+        Serial.print("Date: ");
+        Serial.print(GPS.day, DEC); Serial.print('/');
+        Serial.print(GPS.month, DEC); Serial.print("/20");
+        Serial.println(GPS.year, DEC);
+        Serial.print("Fix: "); Serial.print((int)GPS.fix);
+        Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
+        Serial.print("Location: ");
+        Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
+        Serial.print(", "); 
+        Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
+        
+        Serial.print("Speed (knots): "); Serial.println(GPS.speed);
+        Serial.print("Angle: "); Serial.println(GPS.angle);
+        Serial.print("Altitude: "); Serial.println(GPS.altitude);
+        Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
+        Serial.println();
+        #endif
       }
     }
   }
@@ -239,8 +254,10 @@ void loop()
   if(millis()-senseTimer>1000/sensorHz){
     senseTimer = millis();
     sensors_vec_t orientation;
-    if(ahrs.getOrientation(&orientation)&&SHOW_ORIENTATION){
-    Serial.print("Roll: "); Serial.print(orientation.roll); Serial.print(" Pitch: ");Serial.print(orientation.pitch);Serial.print(" Yaw: ");Serial.println(orientation.heading);
+    if(ahrs.getOrientation(&orientation)){
+    #if SHOW_ORIENTATION == 1
+      Serial.print("Roll: "); Serial.print(orientation.roll); Serial.print(" Pitch: ");Serial.print(orientation.pitch);Serial.print(" Yaw: ");Serial.println(orientation.heading);
+    #endif
     }
   }
   if(throttleTimer>millis()) throttleTimer = millis();
@@ -261,14 +278,15 @@ void loop()
     uint8_t data[7];
     //if it's possible to find if the sensors are working then put that here
     sensor_status = 0;
-    radio_status = 0;
+    radio_status = 1; // if you can read this then the radio should be working...
     GPS_status = GPS.satellites>4;
-    
+    Serial.println(GPS_status);
     rf95.send(data, sizeof(data));
   }
   if(safetyTimer>millis()) safetyTimer = millis();
   if(millis()-safetyTimer>2000){ //if radio message hasn't been received for 2 seconds
     throttleTarget = 155; // set propeller to 0
+    Serial.println("No radio, stopping motor...");
     safetyTimer = millis();
   }
   //Serial.println(currentThrottle);
