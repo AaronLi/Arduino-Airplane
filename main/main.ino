@@ -32,6 +32,12 @@ uint32_t timer = millis();
 uint32_t senseTimer = millis();
 uint32_t ledTimer = millis();
 uint32_t throttleTimer = millis();
+uint32_t radioTimer = millis();
+uint32_t safetyTimer = millis();
+uint8_t sensor_status = 0;
+uint8_t GPS_status = 0;
+uint8_t radio_status = 0;
+
 bool ledState = false;
 int sensorHz = 10;
 int motorSpeeds[] = {90,155,354,360}; // testing values for safety purposes
@@ -55,7 +61,7 @@ void writeServo(int channel,int angle){
 void writeAileron(int angle){
   int writeAngle = map(angle,0,180,AILERONMIN, AILERONMAX);
   pwmDriver.setPWM(LEFT_AILERON, 0, writeAngle);
-  pwmDriver.setPWM(RIGHT_AILERON, 0, writeAngle+10);
+  pwmDriver.setPWM(RIGHT_AILERON, 0, writeAngle);
 }
 void writeElevator(int angle){
   int writeAngle = map(angle,0,180,ELEVATORMIN, ELEVATORMAX);
@@ -121,6 +127,7 @@ void setup()
     while (1);
   }
   Serial.println("LoRa radio init OK!");
+  delay(100);
   if (!rf95.setFrequency(RF95_FREQ)) {
     Serial.println("setFrequency failed");
     while (1);
@@ -128,6 +135,7 @@ void setup()
   Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
   rf95.setTxPower(23, false);
   //~~~~~~~~~~START SENSOR ARRAY~~~~~~~~~~~~~~
+  Serial.println("Starting sensor array...");
   if (!lsm.begin()){
     Serial.println("Oops ... unable to initialize the LSM9DS1. Check your wiring!");
     while (1);
@@ -136,7 +144,9 @@ void setup()
   setupSensor();
   pwmDriver.begin();
   pwmDriver.setPWMFreq(50);
+  Serial.println("Calibrating ESC...");
   calibrateESC();
+  safetyTimer = millis();
 }
 
 void loop()
@@ -161,6 +171,7 @@ void loop()
           throttleTarget = motorSpeeds[throttleValue];
           writeAileron(rollValue);
           writeElevator(pitchValue);
+          safetyTimer = millis();
           Serial.print(", Throttle: ");
           Serial.print(throttleValue);
           Serial.print(", PWM: ");
@@ -169,14 +180,13 @@ void loop()
           Serial.print(pitchValue);
           Serial.print(", Roll: ");
           Serial.println(rollValue);
+      
           break;
       }
       Serial.println();
       if(SHOW_RADIO){
           Serial.println(rf95.lastRssi(), DEC);
       }
-      //uint8_t data[] = "dmfg";
-      //rf95.send(data, sizeof(data));
     }
     else
     {
@@ -244,6 +254,23 @@ void loop()
     }
   }
   pwmDriver.setPWM(THROTTLE, 0, currentThrottle);
+  if(radioTimer>millis()) radioTimer = millis();
+  if(millis()-radioTimer>1000){ // send radio message every second
+    radioTimer = millis();
+    //send gps coordinates and sensor status here
+    uint8_t data[7];
+    //if it's possible to find if the sensors are working then put that here
+    sensor_status = 0;
+    radio_status = 0;
+    GPS_status = GPS.satellites>4;
+    
+    rf95.send(data, sizeof(data));
+  }
+  if(safetyTimer>millis()) safetyTimer = millis();
+  if(millis()-safetyTimer>2000){ //if radio message hasn't been received for 2 seconds
+    throttleTarget = 155; // set propeller to 0
+    safetyTimer = millis();
+  }
   //Serial.println(currentThrottle);
   if(ledTimer>millis()) ledTimer = millis();
   if(millis()-ledTimer>1000){//blink led to show program is running

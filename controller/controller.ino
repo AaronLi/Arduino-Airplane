@@ -76,6 +76,7 @@ void loop()
     uint8_t messageType = 0;
     uint8_t rollValue = map(analogRead(0), 0, 1023, 0, 180);
     uint8_t pitchValue = map(analogRead(1),0,1023,0,180);
+    pitchValue = 180-pitchValue;
     uint8_t throttleValue = map(analogRead(2),0,1023,0,3);
     radiopacket[0] = (messageType<<3)+(throttleValue<<1)+(rollValue>>7);
     radiopacket[1] = (rollValue<<1)+(pitchValue>>7);

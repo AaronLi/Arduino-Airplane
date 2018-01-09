@@ -1,6 +1,5 @@
 import os
-
-import atexit
+import webbrowser
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
@@ -43,10 +42,12 @@ def handleSerial():
             readData = ser.readline()
             print('dataIn:',readData)
         except serial.serialutil.SerialException:
+            return
             print("Device has probably been disconnected")
             connectSerial()
     else:
-        print("Serial port is not open")
+        return
+        #print("Serial port is not open")
         connectSerial()
 connectSerial()
 if __name__ == "__main__":
@@ -58,4 +59,5 @@ if __name__ == "__main__":
     ])
     application.listen(8888)
     print("Starting Server...")
+    webbrowser.open('http://localhost:8888')
     tornado.ioloop.IOLoop.current().start()
