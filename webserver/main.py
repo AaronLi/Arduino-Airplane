@@ -25,15 +25,15 @@ def connectSerial():
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self, *args, **kwargs):
+        print("accessed")
         self.render("index.html")
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self, *args, **kwargs):
         print("Websocket opened",args,kwargs)
     def on_close(self):
         print("Websocket closed")
-
     def on_message(self, message):
-        print("Message received",message)
+        print("Message received: ",message)
 
 def handleSerial():
     global readData
@@ -50,13 +50,18 @@ def handleSerial():
         #print("Serial port is not open")
         connectSerial()
 connectSerial()
+
+
 if __name__ == "__main__":
     tornado.ioloop.PeriodicCallback(handleSerial, 1000/callbackHz).start()
     application = tornado.web.Application([
-        (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': 'static'}),
+        #(r"/static/(.*)", tornado.web.StaticFileHandler, {'path': 'static'}),
         (r"/", MainHandler),
-        (r"/ws",WebSocketHandler)
-    ])
+        (r"/ws",WebSocketHandler),
+        ],
+        static_path=os.path.join(os.path.dirname(__file__), "static"),        
+        template_path=os.path.join(os.path.dirname(__file__), "templates")
+    )
     application.listen(8888)
     print("Starting Server...")
     webbrowser.open('http://localhost:8888')

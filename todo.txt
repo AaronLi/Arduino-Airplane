@@ -1,0 +1,5 @@
+When pointed down => need elevator to auto kick in to stabilize
+Connect PID
+Glue wing (?)
+serial+sockets:
+	draw line
