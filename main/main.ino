@@ -15,7 +15,9 @@
 #define SHOW_ORIENTATION 0
 #define SHOW_GPS 0
 #define SHOW_RADIO 0
-#define WAIT_FOR_SERIAL 0
+#define WAIT_FOR_SERIAL 1
+#define WAIT_FOR_RADIO 0
+#define CALIBRATE_ESC 0
 
 //IO setup
 #define RF95_FREQ 915.0
@@ -66,7 +68,7 @@ int throttleTarget = 0;
 int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
 double rollValue, rollSetpoint, aileronValue; // used for roll based PID
-PID rollPID(&rollValue, &aileronValue, &rollSetpoint, 2, 5, 1, DIRECT);
+PID rollPID(&rollValue, &aileronValue, &rollSetpoint, 1.5, 5, 1, DIRECT);
 
 struct ManualRadioOut{
   uint8_t messageType;
@@ -76,6 +78,7 @@ struct ManualRadioOut{
   uint8_t peripheral1Type;
   uint8_t peripheral2Type;
 };
+ManualRadioOut lastManualMessage;
 void writeServo(int channel,int angle){
   int writeAngle = map(angle,0,180,SERVOMIN,SERVOMAX);
   pwmDriver.setPWM(channel,0,writeAngle);
@@ -97,6 +100,8 @@ ManualRadioOut readRadioMessage(uint8_t* buf){
           uint8_t peripheral2Type = (buf[3]&4)>>2;
           return ManualRadioOut{throttleValue, rollValue, pitchValue, peripheral1Type, peripheral2Type};
 }
+void notifyUser(){
+}
 void calibrateESC(){
   //Serial.println("Calibration started, setting max");
   pwmDriver.setPWM(THROTTLE,0,SERVOMAX); 
@@ -111,8 +116,7 @@ void calibrateESC(){
   //Wait for throttle to be set to 0
 }
 
-void notifyUser(){
-}
+
 
 
 void setupSensor()
@@ -128,6 +132,8 @@ void setupSensor()
 void setupPID(){
   rollSetpoint = 0; // Straight up, replace as needed
   rollPID.SetOutputLimits(0,180);
+  rollPID.SetMode(AUTOMATIC);
+
 }
 void setup() 
 {
@@ -177,10 +183,13 @@ void setup()
   pwmDriver.begin();
   pwmDriver.setPWMFreq(50);
   setupPID();
+  #if CALIBRATE_ESC == 1
   Serial.println("Calibrating ESC...");
   calibrateESC();
   Serial.println("ESC calibrated");
+  #endif
   safetyTimer = millis();
+  #if WAIT_FOR_RADIO == 1
   Serial.println("Finding rest position of controller...");
   while(!rf95.available()){
   }
@@ -190,6 +199,12 @@ void setup()
   ManualRadioOut rMessage = readRadioMessage(buf);
   defaultPitch = rMessage.pitchValue;
   defaultRoll = rMessage.rollValue;
+  #else
+  defaultPitch = 90;
+  defaultRoll = 90;
+  aileronValue = 90;
+  lastManualMessage = {0,0,90,0,0,0};
+  #endif
 }
 
 void loop()
@@ -208,13 +223,13 @@ void loop()
       #endif
       switch(mType){
         case 0: //will be changed once full program is outlined
-          ManualRadioOut rOut= readRadioMessage(buf);
-          uint8_t throttleValue = rOut.throttleValue;
-          aileronValue = (double)rOut.rollValue;
-          uint8_t pitchValue = rOut.pitchValue;
-          uint8_t peripheral1Type = rOut.peripheral1Type;
-          uint8_t peripheral2Type = rOut.peripheral2Type;
-          throttleTarget = motorSpeeds[rOut.throttleValue];
+          lastManualMessage= readRadioMessage(buf);
+          uint8_t throttleValue = lastManualMessage.throttleValue;
+          aileronValue = (double)lastManualMessage.rollValue;
+          uint8_t pitchValue = lastManualMessage.pitchValue;
+          uint8_t peripheral1Type = lastManualMessage.peripheral1Type;
+          uint8_t peripheral2Type = lastManualMessage.peripheral2Type;
+          throttleTarget = motorSpeeds[lastManualMessage.throttleValue];
           writeElevator(pitchValue);
           safetyTimer = millis();
           #if SHOW_RADIO == 1
@@ -281,15 +296,15 @@ void loop()
     }
   }
   //~~~~~~~~~~~~~~~~~~~~SENSE ARRAY INPUT~~~~~~~~~~~~~~~~~~
+  ahrs.getOrientation(&orientation);
+  rollValue = (orientation.roll+180)<180?180+orientation.roll:orientation.roll-180;//reverses the roll (sensor is upside down)
   if (senseTimer > millis())  senseTimer = millis();
   if(millis()-senseTimer>1000/sensorHz){
     senseTimer = millis();
     #if SHOW_ORIENTATION == 1
-      Serial.print("Roll: "); Serial.print(orientation.roll); Serial.print(" Pitch: ");Serial.print(orientation.pitch);Serial.print(" Yaw: ");Serial.println(orientation.heading);
+      Serial.print("Roll: "); Serial.print(rollValue); Serial.print(" Pitch: ");Serial.print(orientation.pitch);Serial.print(" Yaw: ");Serial.println(orientation.heading);
     #endif
   }
-  ahrs.getOrientation(&orientation);
-  rollValue = orientation.roll;
   if(throttleTimer>millis()) throttleTimer = millis();
   if(millis()-throttleTimer>5){
     throttleTimer = millis();
@@ -320,14 +335,18 @@ void loop()
     Serial.println("No radio, stopping motor...");
     safetyTimer = millis();
   }
+  //Serial.print(rollValue);Serial.print(" ");Serial.print(defaultRoll);Serial.print(" ");Serial.println(noRollTime);
   if(pidTimer>millis()) pidTimer = millis();
   if(millis()-pidTimer>100){
-    if(rollValue == defaultRoll){
+    if(lastManualMessage.rollValue == defaultRoll){
       if(noRollTime<5){
         noRollTime++;
       }
       else{
-        rollPID.Compute();
+        if(rollPID.Compute()){
+          Serial.print("Aileron value: ");
+          Serial.println(aileronValue);
+        }
       }
     }
     else{
