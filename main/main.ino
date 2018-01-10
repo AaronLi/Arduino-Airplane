@@ -1,3 +1,5 @@
+#include <PID_v1.h>
+
 #include <Adafruit_PWMServoDriver.h>
 
 #include <Adafruit_Simple_AHRS.h>
@@ -40,7 +42,7 @@
 //<155 propeller braking?
 //354 minimum speed
 //460 maximum speed
-
+sensors_vec_t orientation;
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 Adafruit_GPS GPS(&mySerial);
 Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1();
@@ -52,17 +54,28 @@ uint32_t ledTimer = millis();
 uint32_t throttleTimer = millis();
 uint32_t radioTimer = millis();
 uint32_t safetyTimer = millis();
+uint32_t pidTimer = millis();
 uint8_t sensor_status = 0;
 uint8_t GPS_status = 0;
 uint8_t radio_status = 0;
-
+uint8_t noRollTime, noPitchTime;
 bool ledState = false;
 int sensorHz = 10;
 int motorSpeeds[] = {90,155,354,360}; // testing values for safety purposes
 int throttleTarget = 0;
 int currentThrottle = 0;
+uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
+double rollValue, rollSetpoint, aileronValue; // used for roll based PID
+PID rollPID(&rollValue, &aileronValue, &rollSetpoint, 2, 5, 1, DIRECT);
 
-
+struct ManualRadioOut{
+  uint8_t messageType;
+  uint8_t throttleValue;
+  uint8_t rollValue;
+  uint8_t pitchValue;
+  uint8_t peripheral1Type;
+  uint8_t peripheral2Type;
+};
 void writeServo(int channel,int angle){
   int writeAngle = map(angle,0,180,SERVOMIN,SERVOMAX);
   pwmDriver.setPWM(channel,0,writeAngle);
@@ -75,6 +88,14 @@ void writeAileron(int angle){
 void writeElevator(int angle){
   int writeAngle = map(angle,0,180,ELEVATORMIN, ELEVATORMAX);
   pwmDriver.setPWM(ELEVATOR,0,writeAngle);
+}
+ManualRadioOut readRadioMessage(uint8_t* buf){
+          uint8_t throttleValue = (buf[0]&6)>>1;
+          uint8_t rollValue = (double)((buf[0]&1)<<7)+(buf[1]>>1);
+          uint8_t pitchValue = ((buf[1]&1)<<7)+(buf[2]>>1);
+          uint8_t peripheral1Type = buf[2]&1;
+          uint8_t peripheral2Type = (buf[3]&4)>>2;
+          return ManualRadioOut{throttleValue, rollValue, pitchValue, peripheral1Type, peripheral2Type};
 }
 void calibrateESC(){
   //Serial.println("Calibration started, setting max");
@@ -98,16 +119,16 @@ void setupSensor()
 {
   // 1.) Set the accelerometer range
   lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_2G);
-  //lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_4G);
-  //lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_8G);
-  //lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_16G);
   
   // 2.) Set the magnetometer sensitivity
   lsm.setupMag(lsm.LSM9DS1_MAGGAIN_4GAUSS);
   // 3.) Setup the gyroscope
   lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_245DPS);
 }
-
+void setupPID(){
+  rollSetpoint = 0; // Straight up, replace as needed
+  rollPID.SetOutputLimits(0,180);
+}
 void setup() 
 {
   pinMode(LED, OUTPUT);     
@@ -155,10 +176,20 @@ void setup()
   setupSensor();
   pwmDriver.begin();
   pwmDriver.setPWMFreq(50);
+  setupPID();
   Serial.println("Calibrating ESC...");
   calibrateESC();
   Serial.println("ESC calibrated");
   safetyTimer = millis();
+  Serial.println("Finding rest position of controller...");
+  while(!rf95.available()){
+  }
+  uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+  uint8_t len = sizeof(buf);
+  rf95.recv(buf, &len);
+  ManualRadioOut rMessage = readRadioMessage(buf);
+  defaultPitch = rMessage.pitchValue;
+  defaultRoll = rMessage.rollValue;
 }
 
 void loop()
@@ -177,13 +208,13 @@ void loop()
       #endif
       switch(mType){
         case 0: //will be changed once full program is outlined
-          uint8_t throttleValue = (buf[0]&6)>>1;
-          uint8_t rollValue = ((buf[0]&1)<<7)+(buf[1]>>1);
-          uint8_t pitchValue = ((buf[1]&1)<<7)+(buf[2]>>1);
-          uint8_t peripheral1Type = buf[2]&1;
-          uint8_t peripheral2Type = (buf[3]&4)>>2;
-          throttleTarget = motorSpeeds[throttleValue];
-          writeAileron(rollValue);
+          ManualRadioOut rOut= readRadioMessage(buf);
+          uint8_t throttleValue = rOut.throttleValue;
+          aileronValue = (double)rOut.rollValue;
+          uint8_t pitchValue = rOut.pitchValue;
+          uint8_t peripheral1Type = rOut.peripheral1Type;
+          uint8_t peripheral2Type = rOut.peripheral2Type;
+          throttleTarget = motorSpeeds[rOut.throttleValue];
           writeElevator(pitchValue);
           safetyTimer = millis();
           #if SHOW_RADIO == 1
@@ -253,13 +284,12 @@ void loop()
   if (senseTimer > millis())  senseTimer = millis();
   if(millis()-senseTimer>1000/sensorHz){
     senseTimer = millis();
-    sensors_vec_t orientation;
-    if(ahrs.getOrientation(&orientation)){
     #if SHOW_ORIENTATION == 1
       Serial.print("Roll: "); Serial.print(orientation.roll); Serial.print(" Pitch: ");Serial.print(orientation.pitch);Serial.print(" Yaw: ");Serial.println(orientation.heading);
     #endif
-    }
   }
+  ahrs.getOrientation(&orientation);
+  rollValue = orientation.roll;
   if(throttleTimer>millis()) throttleTimer = millis();
   if(millis()-throttleTimer>5){
     throttleTimer = millis();
@@ -271,6 +301,7 @@ void loop()
     }
   }
   pwmDriver.setPWM(THROTTLE, 0, currentThrottle);
+  writeAileron((int)aileronValue);
   if(radioTimer>millis()) radioTimer = millis();
   if(millis()-radioTimer>1000){ // send radio message every second
     radioTimer = millis();
@@ -288,6 +319,21 @@ void loop()
     throttleTarget = 155; // set propeller to 0
     Serial.println("No radio, stopping motor...");
     safetyTimer = millis();
+  }
+  if(pidTimer>millis()) pidTimer = millis();
+  if(millis()-pidTimer>100){
+    if(rollValue == defaultRoll){
+      if(noRollTime<5){
+        noRollTime++;
+      }
+      else{
+        rollPID.Compute();
+      }
+    }
+    else{
+      noRollTime = 0;
+    }
+    
   }
   //Serial.println(currentThrottle);
   if(ledTimer>millis()) ledTimer = millis();
