@@ -6,9 +6,10 @@ import tornado.websocket
 import serial
 import serial.tools.list_ports
 import serial.serialutil
-callbackHz = 30
+callbackHz = 20
 readData = b""
 ser = None
+client = None#one client to 
 def connectSerial():
     global ser
     availablePorts = serial.tools.list_ports.comports()
@@ -18,21 +19,29 @@ def connectSerial():
     if len(availablePorts)>0:
         try:
             print("Attempting to connect to port", availablePorts[0].device)
-            ser = serial.Serial(availablePorts[0].device, 115200)
+            ser = serial.Serial(availablePorts[0].device, 115200, timeout=1/callbackHz)
             print("\tIsOpen:", ser.is_open, "port:", ser.name)
         except serial.serialutil.SerialException:
             print("\tPort unavailable")
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self, *args, **kwargs):
-        print("accessed")
-        self.render("index.html")
+        if client == None:
+            print("accessed")
+            self.render("index.html")
+        else:
+            print("client rejected")
+            self.write("Already a client connected")
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self, *args, **kwargs):
+        global client
         print("Websocket opened",args,kwargs)
+        client = self
     def on_close(self):
+        global client
         print("Websocket closed")
+        client = None
     def on_message(self, message):
         print("Message received: ",message)
         smessages = message.split()
@@ -44,13 +53,16 @@ def handleSerial():
     if ser != None and ser.is_open:
         try:
             readData = ser.readline()
-            print('dataIn:',readData)
+            if len(readData) != 0:
+                print('dataIn:',readData)
+                if client != None:
+                    client.write_message(readData)
         except serial.serialutil.SerialException:
-            return
+            #return
             print("Device has probably been disconnected")
             connectSerial()
     else:
-        return
+        #return
         #print("Serial port is not open")
         connectSerial()
 connectSerial()
