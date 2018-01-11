@@ -18,7 +18,7 @@
 #define WAIT_FOR_SERIAL 1 // off for flight
 #define WAIT_FOR_RADIO 1 // on for flight
 #define CALIBRATE_ESC 0 // on for flight
-#define PID_ON 1 // on for flight
+#define PID_ON 0 // on for flight
 
 //IO setup
 #define RF95_FREQ 915.0
@@ -32,7 +32,7 @@
 #define SERVOMAX 460
 #define AILERONMAX 317
 #define AILERONMIN 265
-#define ELEVATORMAX 176
+#define ELEVATORMAX 166 // Actual max is 176
 #define ELEVATORMIN 95
 
 //Outputs
@@ -153,6 +153,8 @@ void setup()
   digitalWrite(RFM95_RST, HIGH);
   #if WAIT_FOR_SERIAL == 1
   while (!Serial); // wait for serial if needed
+  #else
+  delay(5000);
   #endif
   Serial.begin(115200);
   //~~~~~~~~~~~~~~~~~~~~~~~~START GPS~~~~~~~~~~~~~~~~~~~~
@@ -376,8 +378,6 @@ void loop()
       else{
         //Serial.println("pitchPID");
         if(pitchPID.Compute()){
-          Serial.print("Elevator value: ");
-          Serial.println(elevatorValue);
         }
       }
     }
@@ -386,7 +386,6 @@ void loop()
     }
   }
   #endif
-  Serial.println(noPitchTime);
   writeAileron((int)aileronValue);
   writeElevator((int)elevatorValue);
   //Serial.println(currentThrottle);
