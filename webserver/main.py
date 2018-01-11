@@ -27,6 +27,7 @@ class MainHandler(tornado.web.RequestHandler):
     def get(self, *args, **kwargs):
         print("accessed")
         self.render("index.html")
+
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self, *args, **kwargs):
         print("Websocket opened",args,kwargs)
@@ -34,6 +35,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print("Websocket closed")
     def on_message(self, message):
         print("Message received: ",message)
+        smessages = message.split()
+        if smessages[0] == 'Position:':
+            coords.append(smessage[1])
 
 def handleSerial():
     global readData
@@ -55,12 +59,10 @@ connectSerial()
 if __name__ == "__main__":
     tornado.ioloop.PeriodicCallback(handleSerial, 1000/callbackHz).start()
     application = tornado.web.Application([
-        #(r"/static/(.*)", tornado.web.StaticFileHandler, {'path': 'static'}),
+        (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': 'static'}),
         (r"/", MainHandler),
         (r"/ws",WebSocketHandler),
-        ],
-        static_path=os.path.join(os.path.dirname(__file__), "static"),        
-        template_path=os.path.join(os.path.dirname(__file__), "templates")
+        ]
     )
     application.listen(8888)
     print("Starting Server...")
