@@ -12,12 +12,13 @@
 
 
 //Config
-#define SHOW_ORIENTATION 0
-#define SHOW_GPS 0
-#define SHOW_RADIO 0
-#define WAIT_FOR_SERIAL 1
-#define WAIT_FOR_RADIO 0
-#define CALIBRATE_ESC 0
+#define SHOW_ORIENTATION 0 // off for flight
+#define SHOW_GPS 0 // off for flight
+#define SHOW_RADIO 0 // off for flight
+#define WAIT_FOR_SERIAL 1 // off for flight
+#define WAIT_FOR_RADIO 1 // on for flight
+#define CALIBRATE_ESC 0 // on for flight
+#define PID_ON 0 // on for flight
 
 //IO setup
 #define RF95_FREQ 915.0
@@ -31,7 +32,7 @@
 #define SERVOMAX 460
 #define AILERONMAX 317
 #define AILERONMIN 265
-#define ELEVATORMAX 176
+#define ELEVATORMAX 166 // Actual max is 176
 #define ELEVATORMIN 95
 
 //Outputs
@@ -68,7 +69,11 @@ int throttleTarget = 0;
 int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
 double rollValue, rollSetpoint, aileronValue; // used for roll based PID
-PID rollPID(&rollValue, &aileronValue, &rollSetpoint, 1.5, 5, 1, DIRECT);
+double pitchValue, pitchSetpoint, elevatorValue;
+#if PID_ON == 1
+PID rollPID(&rollValue, &aileronValue, &rollSetpoint, 1.5, 2, 1, DIRECT);
+PID pitchPID(&pitchValue, &elevatorValue, &pitchSetpoint, 1.5, 2, 1, DIRECT);
+#endif
 
 struct ManualRadioOut{
   uint8_t messageType;
@@ -92,13 +97,14 @@ void writeElevator(int angle){
   int writeAngle = map(angle,0,180,ELEVATORMIN, ELEVATORMAX);
   pwmDriver.setPWM(ELEVATOR,0,writeAngle);
 }
-ManualRadioOut readRadioMessage(uint8_t* buf){
+ManualRadioOut readRadioMessage(uint8_t buf[]){
+          uint8_t mType = buf[0]>>3;
           uint8_t throttleValue = (buf[0]&6)>>1;
           uint8_t rollValue = (double)((buf[0]&1)<<7)+(buf[1]>>1);
           uint8_t pitchValue = ((buf[1]&1)<<7)+(buf[2]>>1);
           uint8_t peripheral1Type = buf[2]&1;
           uint8_t peripheral2Type = (buf[3]&4)>>2;
-          return ManualRadioOut{throttleValue, rollValue, pitchValue, peripheral1Type, peripheral2Type};
+          return ManualRadioOut{mType, throttleValue, rollValue, pitchValue, peripheral1Type, peripheral2Type};
 }
 void notifyUser(){
 }
@@ -130,10 +136,15 @@ void setupSensor()
   lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_245DPS);
 }
 void setupPID(){
+  #if PID_ON == 1
   rollSetpoint = 0; // Straight up, replace as needed
   rollPID.SetOutputLimits(0,180);
   rollPID.SetMode(AUTOMATIC);
-
+  
+  pitchSetpoint = 0;
+  pitchPID.SetOutputLimits(0,180);
+  pitchPID.SetMode(AUTOMATIC);
+  #endif
 }
 void setup() 
 {
@@ -142,6 +153,8 @@ void setup()
   digitalWrite(RFM95_RST, HIGH);
   #if WAIT_FOR_SERIAL == 1
   while (!Serial); // wait for serial if needed
+  #else
+  delay(5000);
   #endif
   Serial.begin(115200);
   //~~~~~~~~~~~~~~~~~~~~~~~~START GPS~~~~~~~~~~~~~~~~~~~~
@@ -203,7 +216,7 @@ void setup()
   defaultPitch = 90;
   defaultRoll = 90;
   aileronValue = 90;
-  lastManualMessage = {0,0,90,0,0,0};
+  lastManualMessage = {0,0,90,90,0,0};
   #endif
 }
 
@@ -226,11 +239,10 @@ void loop()
           lastManualMessage= readRadioMessage(buf);
           uint8_t throttleValue = lastManualMessage.throttleValue;
           aileronValue = (double)lastManualMessage.rollValue;
-          uint8_t pitchValue = lastManualMessage.pitchValue;
+          elevatorValue = (double)lastManualMessage.pitchValue;
           uint8_t peripheral1Type = lastManualMessage.peripheral1Type;
           uint8_t peripheral2Type = lastManualMessage.peripheral2Type;
           throttleTarget = motorSpeeds[lastManualMessage.throttleValue];
-          writeElevator(pitchValue);
           safetyTimer = millis();
           #if SHOW_RADIO == 1
           Serial.print(", Throttle: ");
@@ -238,9 +250,9 @@ void loop()
           Serial.print(", PWM: ");
           Serial.print(motorSpeeds[throttleValue]);
           Serial.print(", Pitch: ");
-          Serial.print(pitchValue);
+          Serial.print(aileronValue);
           Serial.print(", Roll: ");
-          Serial.println(rollValue);
+          Serial.println(elevatorValue);
           #endif
           break;
       }
@@ -298,6 +310,7 @@ void loop()
   //~~~~~~~~~~~~~~~~~~~~SENSE ARRAY INPUT~~~~~~~~~~~~~~~~~~
   ahrs.getOrientation(&orientation);
   rollValue = (orientation.roll+180)<180?180+orientation.roll:orientation.roll-180;//reverses the roll (sensor is upside down)
+  pitchValue = orientation.pitch;
   if (senseTimer > millis())  senseTimer = millis();
   if(millis()-senseTimer>1000/sensorHz){
     senseTimer = millis();
@@ -305,6 +318,7 @@ void loop()
       Serial.print("Roll: "); Serial.print(rollValue); Serial.print(" Pitch: ");Serial.print(orientation.pitch);Serial.print(" Yaw: ");Serial.println(orientation.heading);
     #endif
   }
+  //~~~~~~~~~~~~~~~~~~~~~~~~~FINE THROTTLE~~~~~~~~~~~~~~~~~~~~~~
   if(throttleTimer>millis()) throttleTimer = millis();
   if(millis()-throttleTimer>5){
     throttleTimer = millis();
@@ -316,7 +330,7 @@ void loop()
     }
   }
   pwmDriver.setPWM(THROTTLE, 0, currentThrottle);
-  writeAileron((int)aileronValue);
+  //~~~~~~~~~PLANE TO CONTROLLER COMMUNICATION~~~~~~~~
   if(radioTimer>millis()) radioTimer = millis();
   if(millis()-radioTimer>1000){ // send radio message every second
     radioTimer = millis();
@@ -326,9 +340,11 @@ void loop()
     sensor_status = 0;
     radio_status = 1; // if you can read this then the radio should be working...
     GPS_status = GPS.satellites>4;
+    Serial.print("GPS status: ");
     Serial.println(GPS_status);
     rf95.send(data, sizeof(data));
   }
+//~~~~~~~~~~~~SAFE MOTOR OFF~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   if(safetyTimer>millis()) safetyTimer = millis();
   if(millis()-safetyTimer>2000){ //if radio message hasn't been received for 2 seconds
     throttleTarget = 155; // set propeller to 0
@@ -336,24 +352,42 @@ void loop()
     safetyTimer = millis();
   }
   //Serial.print(rollValue);Serial.print(" ");Serial.print(defaultRoll);Serial.print(" ");Serial.println(noRollTime);
+  //Serial.println(lastManualMessage.pitchValue);
+  #if PID_ON == 1
   if(pidTimer>millis()) pidTimer = millis();
   if(millis()-pidTimer>100){
+    pidTimer = millis();
     if(lastManualMessage.rollValue == defaultRoll){
       if(noRollTime<5){
         noRollTime++;
       }
       else{
         if(rollPID.Compute()){
-          Serial.print("Aileron value: ");
-          Serial.println(aileronValue);
+          /*Serial.print("Aileron value: ");
+          Serial.println(aileronValue);*/
         }
       }
     }
     else{
       noRollTime = 0;
     }
-    
+    if(lastManualMessage.pitchValue == defaultPitch){
+      if(noPitchTime<5){
+        noPitchTime++; 
+      }
+      else{
+        //Serial.println("pitchPID");
+        if(pitchPID.Compute()){
+        }
+      }
+    }
+    else{
+      noPitchTime = 0; 
+    }
   }
+  #endif
+  writeAileron((int)aileronValue);
+  writeElevator((int)elevatorValue);
   //Serial.println(currentThrottle);
   if(ledTimer>millis()) ledTimer = millis();
   if(millis()-ledTimer>1000){//blink led to show program is running
