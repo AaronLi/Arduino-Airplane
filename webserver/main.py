@@ -31,7 +31,11 @@ class MainHandler(tornado.web.RequestHandler):
             self.render("index.html")
         else:
             print("client rejected")
-            self.write("Already a client connected")
+            self.write('''
+Client already connected
+<br/>
+Think this is an error? <i> You might be right</i>
+''')
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self, *args, **kwargs):

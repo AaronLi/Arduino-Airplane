@@ -19,6 +19,7 @@
 #define WAIT_FOR_RADIO 1 // on for flight
 #define CALIBRATE_ESC 1 // on for flight
 #define PID_ON 0 // on for flight
+#define DUMB_STABILIZE 1// off for flight
 
 //IO setup
 #define RF95_FREQ 915.0
@@ -70,7 +71,7 @@ int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
 double rollValue, rollSetpoint, aileronValue; // used for roll based PID
 double pitchValue, pitchSetpoint, elevatorValue;
-#if PID_ON == 1
+#if PID_ON == 1 && DUMB_STABILIZE == 0
 PID rollPID(&rollValue, &aileronValue, &rollSetpoint, 1.5, 2, 1, DIRECT);
 PID pitchPID(&pitchValue, &elevatorValue, &pitchSetpoint, 1.5, 2, 1, DIRECT);
 #endif
@@ -136,7 +137,7 @@ void setupSensor()
   lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_245DPS);
 }
 void setupPID(){
-  #if PID_ON == 1
+  #if PID_ON == 1 && DUMB_STABILIZE == 0
   rollSetpoint = 0; // Straight up, replace as needed
   rollPID.SetOutputLimits(0,180);
   rollPID.SetMode(AUTOMATIC);
@@ -353,6 +354,7 @@ void loop()
   }
   //Serial.print(rollValue);Serial.print(" ");Serial.print(defaultRoll);Serial.print(" ");Serial.println(noRollTime);
   //Serial.println(lastManualMessage.pitchValue);
+  Serial.println("Before PID");
   #if PID_ON == 1
   if(pidTimer>millis()) pidTimer = millis();
   if(millis()-pidTimer>100){
@@ -362,10 +364,22 @@ void loop()
         noRollTime++;
       }
       else{
+        #if DUMB_STABILIZE == 1
+        if(rollValue>5){
+          writeAileron(70);
+        }
+        else if(rollValue<-5){
+          writeAileron(110);
+        }
+        else{
+          writeAileron(90);
+        }
+        #else
         if(rollPID.Compute()){
           /*Serial.print("Aileron value: ");
           Serial.println(aileronValue);*/
         }
+        #endif
       }
     }
     else{
@@ -377,8 +391,20 @@ void loop()
       }
       else{
         //Serial.println("pitchPID");
+        #if DUMB_STABILIZE == 1
+        if(pitch>5){
+          writeElevator(110);
+        }
+        else if(pitch<-5){
+          writeElevator(70);
+        }
+        else{
+          writeAileron(90);
+        }
+        #else
         if(pitchPID.Compute()){
         }
+        #endif
       }
     }
     else{
@@ -386,6 +412,7 @@ void loop()
     }
   }
   #endif
+  Serial.println("After PID");
   writeAileron((int)aileronValue);
   writeElevator((int)elevatorValue);
   //Serial.println(currentThrottle);
