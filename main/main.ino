@@ -15,9 +15,9 @@
 #define SHOW_ORIENTATION 0 // off for flight
 #define SHOW_GPS 0 // off for flight
 #define SHOW_RADIO 0 // off for flight
-#define WAIT_FOR_SERIAL 1 // off for flight
+#define WAIT_FOR_SERIAL 0 // off for flight
 #define WAIT_FOR_RADIO 1 // on for flight
-#define CALIBRATE_ESC 0 // on for flight
+#define CALIBRATE_ESC 1 // on for flight
 #define PID_ON 0 // on for flight
 
 //IO setup
@@ -30,8 +30,8 @@
 //Servo Limits
 #define SERVOMIN 90 //Should be pretty accurate
 #define SERVOMAX 460
-#define AILERONMAX 317
-#define AILERONMIN 265
+#define AILERONMAX 277
+#define AILERONMIN 195
 #define ELEVATORMAX 166 // Actual max is 176
 #define ELEVATORMIN 95
 
@@ -90,7 +90,7 @@ void writeServo(int channel,int angle){
 }
 void writeAileron(int angle){
   int writeAngle = map(angle,0,180,AILERONMIN, AILERONMAX);
-  pwmDriver.setPWM(LEFT_AILERON, 0, writeAngle);
+  pwmDriver.setPWM(LEFT_AILERON, 0, writeAngle+10);
   pwmDriver.setPWM(RIGHT_AILERON, 0, writeAngle);
 }
 void writeElevator(int angle){
