@@ -1,4 +1,5 @@
 When pointed down => need elevator to auto kick in to stabilize
+	=> turning loses speed (?) so need a certain velocity at all times to not lose lift
 Connect PID
 Glue wing (?)
 serial+sockets:
