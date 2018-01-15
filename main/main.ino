@@ -17,9 +17,10 @@
 #define SHOW_RADIO 0 // off for flight
 #define WAIT_FOR_SERIAL 0 // off for flight
 #define WAIT_FOR_RADIO 1 // on for flight
-#define CALIBRATE_ESC 1 // on for flight
+#define CALIBRATE_ESC 0 // on for flight
 #define PID_ON 0 // on for flight
 #define DUMB_STABILIZE 1// off for flight
+#define DUMB_STABILIZE_AMOUNT 50 //adjust to fit
 
 //IO setup
 #define RF95_FREQ 915.0
@@ -33,7 +34,7 @@
 #define SERVOMAX 460
 #define AILERONMAX 277
 #define AILERONMIN 195
-#define ELEVATORMAX 166 // Actual max is 176
+#define ELEVATORMAX 175 // Actual max is 176
 #define ELEVATORMIN 95
 
 //Outputs
@@ -71,6 +72,7 @@ int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
 double rollValue, rollSetpoint, aileronValue; // used for roll based PID
 double pitchValue, pitchSetpoint, elevatorValue;
+float planeLongitude, planeLatitude;
 #if PID_ON == 1 && DUMB_STABILIZE == 0
 PID rollPID(&rollValue, &aileronValue, &rollSetpoint, 1.5, 2, 1, DIRECT);
 PID pitchPID(&pitchValue, &elevatorValue, &pitchSetpoint, 1.5, 2, 1, DIRECT);
@@ -295,9 +297,11 @@ void loop()
         Serial.print("Fix: "); Serial.print((int)GPS.fix);
         Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
         Serial.print("Location: ");
-        Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
+        planeLongitude = GPS.longitude;
+        planeLatitude = GPS.latitude;
+        Serial.print(planeLatitude, 4); Serial.print(GPS.lat);
         Serial.print(", "); 
-        Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
+        Serial.print(planeLongitude, 4); Serial.println(GPS.lon);
         
         Serial.print("Speed (knots): "); Serial.println(GPS.speed);
         Serial.print("Angle: "); Serial.println(GPS.angle);
@@ -338,12 +342,25 @@ void loop()
     //send gps coordinates and sensor status here
     uint8_t data[7];
     //if it's possible to find if the sensors are working then put that here
-    sensor_status = 0;
+    sensor_status = 1; // I'm not sure how to figure out if a sensor is working but let's stay positive
     radio_status = 1; // if you can read this then the radio should be working...
     GPS_status = GPS.satellites>4;
+    unsigned long longitudeOut, latitudeOut;
+    longitudeOut = (unsigned long)((planeLongitude+180)*1000);
+    latitudeOut = (unsigned long)((planeLatitude+90)*1000);
+    data[0]+=(sensor_status<<7)+(radio_status<<6)+(GPS_status<<5);
+    data[0]+=(uint8_t)(latitudeOut>>22);
+    data[1]+=(uint8_t)((latitudeOut>>14)&255);
+    data[2]+=(uint8_t)((latitudeOut>>6)&255);
+    data[3]+=(uint8_t)((latitudeOut<<2)&252);
+    data[3]+=(uint8_t)(latitudeOut>>24);
+    data[4]+=(uint8_t)((longitudeOut>>16)&255);
+    data[5]+=(uint8_t)((longitudeOut>>8)&255);
+    data[6]+=(uint8_t)(longitudeOut&255);
     Serial.print("GPS status: ");
     Serial.println(GPS_status);
     rf95.send(data, sizeof(data));
+    rf95.waitPacketSent();
   }
 //~~~~~~~~~~~~SAFE MOTOR OFF~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   if(safetyTimer>millis()) safetyTimer = millis();
@@ -352,9 +369,8 @@ void loop()
     Serial.println("No radio, stopping motor...");
     safetyTimer = millis();
   }
-  //Serial.print(rollValue);Serial.print(" ");Serial.print(defaultRoll);Serial.print(" ");Serial.println(noRollTime);
   //Serial.println(lastManualMessage.pitchValue);
-  Serial.println("Before PID");
+  //Serial.println("Before PID");
   #if PID_ON == 1
   if(pidTimer>millis()) pidTimer = millis();
   if(millis()-pidTimer>100){
@@ -362,24 +378,6 @@ void loop()
     if(lastManualMessage.rollValue == defaultRoll){
       if(noRollTime<5){
         noRollTime++;
-      }
-      else{
-        #if DUMB_STABILIZE == 1
-        if(rollValue>5){
-          writeAileron(70);
-        }
-        else if(rollValue<-5){
-          writeAileron(110);
-        }
-        else{
-          writeAileron(90);
-        }
-        #else
-        if(rollPID.Compute()){
-          /*Serial.print("Aileron value: ");
-          Serial.println(aileronValue);*/
-        }
-        #endif
       }
     }
     else{
@@ -389,30 +387,49 @@ void loop()
       if(noPitchTime<5){
         noPitchTime++; 
       }
-      else{
-        //Serial.println("pitchPID");
-        #if DUMB_STABILIZE == 1
-        if(pitch>5){
-          writeElevator(110);
-        }
-        else if(pitch<-5){
-          writeElevator(70);
-        }
-        else{
-          writeAileron(90);
-        }
-        #else
-        if(pitchPID.Compute()){
-        }
-        #endif
-      }
     }
     else{
       noPitchTime = 0; 
     }
   }
+  
+  if(noRollTime == 5){
+  #if DUMB_STABILIZE == 1
+  if(rollValue>5){
+    aileronValue = 90-DUMB_STABILIZE_AMOUNT;
+  }
+  else if(rollValue<-5){
+    aileronValue = 90+DUMB_STABILIZE_AMOUNT;
+  }
+  else{
+    aileronValue = 90;
+  }
+  #else
+  if(rollPID.Compute()){
+    /*Serial.print("Aileron value: ");
+    Serial.println(aileronValue);*/
+  }
   #endif
-  Serial.println("After PID");
+  }
+  if(noPitchTime == 5){      
+    #if DUMB_STABILIZE == 1
+    if(pitchValue>5){
+      elevatorValue = 0;
+    }
+    else if(pitchValue<-5){
+      elevatorValue = 180;
+    }
+    else{
+      elevatorValue = 90;
+    }
+    #else
+    if(pitchPID.Compute()){
+    }
+    #endif 
+  }
+  Serial.print(rollValue);Serial.print(" ");Serial.print(pitchValue);Serial.print(" ");Serial.print(noPitchTime);Serial.print(" ");Serial.print(aileronValue);Serial.print(" ");Serial.println(elevatorValue);
+  #endif
+  //Serial.println("After PID");
   writeAileron((int)aileronValue);
   writeElevator((int)elevatorValue);
   //Serial.println(currentThrottle);
