@@ -1,24 +1,33 @@
-#include <LiquidCrystal.h>
+#include <LiquidCrystal_I2C.h>
+
+#include <Nunchuk.h>
+
+
 
  //The current radio controller
 #include <SPI.h>
 #include <RH_RF95.h>
 
-#define RFM95_CS 4
-#define RFM95_RST 3
-#define RFM95_INT 2
+#define RFM95_CS 8
+#define RFM95_RST 9
+#define RFM95_INT 7
 
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
 #define PACKET_SIZE 7
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
-LiquidCrystal lcd(7,8,9,10,11,12);
+Nunchuk nck;
+int throttleValues = 3;
+uint8_t throttle = 0;
+boolean cPressed = false;
+boolean zPressed = false;
+LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 void setup() 
 {
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
-
+  nck.initialize();
   //while (!Serial);
   Serial.begin(115200);
   lcd.begin(16,2);
@@ -72,20 +81,42 @@ void setup()
 void loop()
 {
     // Send a message to rf95_server
+    nck.update();
     uint8_t radiopacket[PACKET_SIZE];
     uint8_t messageType = 0;
-    uint8_t rollValue = map(analogRead(0), 0, 1023, 0, 180);
-    uint8_t pitchValue = map(analogRead(1),0,1023,0,180);
+    uint8_t rollValue = map(nck.joystick_x(), 27, 229, 0, 180);
+    uint8_t pitchValue = map(nck.joystick_y(),33,225,0,180);
     pitchValue = 180-pitchValue;
-    uint8_t throttleValue = map(analogRead(2),0,1023,0,3);
-    radiopacket[0] = (messageType<<3)+(throttleValue<<1)+(rollValue>>7);
+   if(nck.c_button()){
+    if(!cPressed){
+      cPressed = true;
+      if(throttle<throttleValues){
+        throttle++;
+      }
+    }
+   }
+   else{
+    cPressed = false;
+   }
+   if(nck.z_button()){
+    if(!zPressed){
+      zPressed = true;
+      if(throttle>0){
+        throttle--;
+      }
+    }
+   }
+   else{
+    zPressed = false;
+   }
+    radiopacket[0] = (messageType<<3)+(throttle<<1)+(rollValue>>7);
     radiopacket[1] = (rollValue<<1)+(pitchValue>>7);
     radiopacket[2] = (pitchValue<<1);
     lcd.home();
     lcd.print("                ");
     lcd.home();
     lcd.print("T");
-    lcd.print(throttleValue);
+    lcd.print(throttle);
     lcd.print(" X");
     lcd.print(rollValue);
     lcd.setCursor(7,0);
@@ -107,7 +138,7 @@ void loop()
       lcd.setCursor(0,1);
       lcd.print("reply: ");
       lcd.print((char*)buf);
-      Serial.print(latitudeIn);Serial.print(" ");Serial.println(longitudeIn);
+      Serial.print("Received: ");Serial.print(latitudeIn);Serial.print(" ");Serial.println(longitudeIn);
       //Serial.print("RSSI: ");
       //Serial.println(rf95.lastRssi(), DEC);    
     }

@@ -18,7 +18,7 @@
 #define WAIT_FOR_SERIAL 0 // off for flight
 #define WAIT_FOR_RADIO 1 // on for flight
 #define CALIBRATE_ESC 0 // on for flight
-#define PID_ON 0 // on for flight
+#define PID_ON 0  // on for flight
 #define DUMB_STABILIZE 1// off for flight
 #define DUMB_STABILIZE_AMOUNT 50 //adjust to fit
 
@@ -66,7 +66,7 @@ uint8_t radio_status = 0;
 uint8_t noRollTime, noPitchTime;
 bool ledState = false;
 int sensorHz = 10;
-int motorSpeeds[] = {90,155,354,360}; // testing values for safety purposes
+int motorSpeeds[] = {90,155,354,364}; // testing values for safety purposes
 int throttleTarget = 0;
 int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
@@ -338,6 +338,7 @@ void loop()
   //~~~~~~~~~PLANE TO CONTROLLER COMMUNICATION~~~~~~~~
   if(radioTimer>millis()) radioTimer = millis();
   if(millis()-radioTimer>1000){ // send radio message every second
+    Serial.println("Radio!");
     radioTimer = millis();
     //send gps coordinates and sensor status here
     uint8_t data[7];
@@ -375,7 +376,7 @@ void loop()
   if(pidTimer>millis()) pidTimer = millis();
   if(millis()-pidTimer>100){
     pidTimer = millis();
-    if(lastManualMessage.rollValue == defaultRoll){
+    if(abs(lastManualMessage.rollValue - defaultRoll)<6){
       if(noRollTime<5){
         noRollTime++;
       }
@@ -383,7 +384,7 @@ void loop()
     else{
       noRollTime = 0;
     }
-    if(lastManualMessage.pitchValue == defaultPitch){
+    if(abs(lastManualMessage.pitchValue - defaultPitch)<6){
       if(noPitchTime<5){
         noPitchTime++; 
       }
