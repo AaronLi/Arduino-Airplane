@@ -11,7 +11,7 @@
 #define RFM95_CS 8
 #define RFM95_RST 9
 #define RFM95_INT 7
-
+#define WAIT_FOR_SERIAL
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
 #define PACKET_SIZE 7
@@ -28,12 +28,23 @@ void setup()
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
   nck.initialize();
-  //while (!Serial);
-  Serial.begin(115200);
   lcd.begin(16,2);
   lcd.home();
   lcd.clear();
   lcd.noCursor();
+  #ifdef WAIT_FOR_SERIAL
+  while (!Serial){
+    lcd.home();
+    lcd.println("Awaiting SerialI");
+    delay(100);
+    lcd.home();
+    lcd.println("Awaiting Serial*");
+    delay(100);
+  }
+  lcd.home();
+  lcd.clear();
+  #endif
+  Serial.begin(115200);
   delay(100);
 
   Serial.println("Arduino LoRa TX Remote!");
@@ -123,6 +134,9 @@ void loop()
     lcd.print(" Y");
     lcd.print(pitchValue);
     rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
+    rf95.waitPacketSent();
+    
+    //delay(10);
     if (rf95.available()){ 
     // Should be a reply message for us now   
     // Now wait for a reply
@@ -133,20 +147,20 @@ void loop()
       long longitudeIn, latitudeIn;
       longitudeIn+=((buf[0]&7)<<22)+(buf[1]<<14)+(buf[2]<<6)+buf[3]>>2;
       latitudeIn+=((buf[3]&3)<<24)+(buf[4]<<16)+(buf[5]<<8)+buf[6];
-      longitudeIn-=18000000;
-      latitudeIn-=9000000;
+      //longitudeIn-=18000000;
+      //latitudeIn-=9000000;
       lcd.setCursor(0,1);
-      lcd.print("reply: ");
-      lcd.print((char*)buf);
+      for(int i = 0;i<len;i++){
+        lcd.print(buf[i]);
+      }
       Serial.print("Received: ");Serial.print(latitudeIn);Serial.print(" ");Serial.println(longitudeIn);
       //Serial.print("RSSI: ");
       //Serial.println(rf95.lastRssi(), DEC);    
     }
     else
     {
-      Serial.println("Receive failed");
+      //Serial.println("Receive failed");
     }
   }
-  rf95.waitPacketSent();
   //Serial.print(".");
 }
