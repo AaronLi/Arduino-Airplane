@@ -4,14 +4,14 @@
 
 
 
-//The current radio controller
+ //The current radio controller
 #include <SPI.h>
 #include <RH_RF95.h>
 
 #define RFM95_CS 8
 #define RFM95_RST 9
 #define RFM95_INT 7
-
+#define WAIT_FOR_SERIAL
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
 #define PACKET_SIZE 7
@@ -23,17 +23,28 @@ uint8_t throttle = 0;
 boolean cPressed = false;
 boolean zPressed = false;
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
-void setup()
+void setup() 
 {
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
   nck.initialize();
-  //while (!Serial);
-  Serial.begin(115200);
-  lcd.begin(16, 2);
+  lcd.begin(16,2);
   lcd.home();
   lcd.clear();
   lcd.noCursor();
+  #ifdef WAIT_FOR_SERIAL
+  while (!Serial){
+    lcd.home();
+    lcd.println("Awaiting SerialI");
+    delay(100);
+    lcd.home();
+    lcd.println("Awaiting Serial*");
+    delay(100);
+  }
+  lcd.home();
+  lcd.clear();
+  #endif
+  Serial.begin(115200);
   delay(100);
 
   Serial.println("Arduino LoRa TX Remote!");
@@ -44,7 +55,7 @@ void setup()
   digitalWrite(RFM95_RST, HIGH);
   delay(500);
   Serial.println("Reset radio");
-  lcd.setCursor(0, 1);
+  lcd.setCursor(0,1);
   while (!rf95.init()) {
     Serial.println("LoRa radio init failed");
     lcd.print("Failed");
@@ -58,7 +69,7 @@ void setup()
   lcd.clear();
   lcd.print("Setting freq");
   delay(500);
-  lcd.setCursor(0, 1);
+  lcd.setCursor(0,1);
   if (!rf95.setFrequency(RF95_FREQ)) {
     Serial.println("setFrequency failed");
     lcd.print("Failed");
@@ -77,7 +88,7 @@ void setup()
   }
   Serial.println("Plane Connected");
   // The default transmitter power is 13dBm, using PA_BOOST.
-  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then
+  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
   // you can set transmitter powers from 5 to 23 dBm:
   rf95.setTxPower(23, false);
   lcd.clear();
@@ -85,34 +96,35 @@ void setup()
 
 void loop()
 {
-  // Send a message to rf95_server
-  nck.update();
-  uint8_t radiopacket[PACKET_SIZE];
-  uint8_t messageType = 0;
-  uint8_t rollValue = map(nck.joystick_x(), 27, 229, 0, 180);
-  uint8_t pitchValue = map(nck.joystick_y(), 33, 225, 0, 180);
-  pitchValue = 180 - pitchValue;
-  if (nck.c_button()) {
-    if (!cPressed) {
+    // Send a message to rf95_server
+    nck.update();
+    uint8_t radiopacket[PACKET_SIZE];
+    uint8_t messageType = 0;
+    uint8_t rollValue = map(nck.joystick_x(), 27, 229, 0, 180);
+    uint8_t pitchValue = map(nck.joystick_y(),33,225,0,180);
+    pitchValue = 180-pitchValue;
+   if(nck.c_button()){
+    if(!cPressed){
       cPressed = true;
-      if (throttle < throttleValues) {
+      if(throttle<throttleValues){
         throttle++;
       }
     }
-  }
-  else {
+   }
+   else{
     cPressed = false;
-  }
-  if (nck.z_button()) {
-    if (!zPressed) {
+   }
+   if(nck.z_button()){
+    if(!zPressed){
       zPressed = true;
-      if (throttle > 0) {
+      if(throttle>0){
         throttle--;
       }
     }
-  }
-  else {
+   }
+   else{
     zPressed = false;
+<<<<<<< HEAD
   }
   radiopacket[0] = (messageType << 3) + (throttle << 1) + (rollValue >> 7);
   radiopacket[1] = (rollValue << 1) + (pitchValue >> 7);
@@ -130,12 +142,34 @@ void loop()
   //rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
   if (rf95.available()) {
     // Should be a reply message for us now
+=======
+   }
+    radiopacket[0] = (messageType<<3)+(throttle<<1)+(rollValue>>7);
+    radiopacket[1] = (rollValue<<1)+(pitchValue>>7);
+    radiopacket[2] = (pitchValue<<1);
+    lcd.home();
+    lcd.print("                ");
+    lcd.home();
+    lcd.print("T");
+    lcd.print(throttle);
+    lcd.print(" X");
+    lcd.print(rollValue);
+    lcd.setCursor(7,0);
+    lcd.print(" Y");
+    lcd.print(pitchValue);
+    rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
+    rf95.waitPacketSent();
+    
+    if (rf95.available()){ 
+    // Should be a reply message for us now   
+>>>>>>> b0abb52b8c03b930138eef2942bb110f8a04e0a6
     // Now wait for a reply
     uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
     uint8_t len = sizeof(buf);
     if (rf95.recv(buf, &len))
-    {
+   {
       long longitudeIn, latitudeIn;
+<<<<<<< HEAD
       longitudeIn += ((buf[0] & 7) << 22) + (buf[1] << 14) + (buf[2] << 6) + buf[3] >> 2;
       latitudeIn += ((buf[3] & 3) << 24) + (buf[4] << 16) + (buf[5] << 8) + buf[6];
       longitudeIn -= 18000000;
@@ -144,14 +178,24 @@ void loop()
       lcd.print("reply: ");
       lcd.print((char*)buf);
       Serial.print("Received: "); Serial.print(latitudeIn); Serial.print(" "); Serial.println(longitudeIn);
+=======
+      longitudeIn+=((buf[0]&7)<<22)+(buf[1]<<14)+(buf[2]<<6)+buf[3]>>2;
+      latitudeIn+=((buf[3]&3)<<24)+(buf[4]<<16)+(buf[5]<<8)+buf[6];
+      longitudeIn-=18000000;
+      latitudeIn-=9000000;
+      lcd.setCursor(0,1);
+      for(int i = 0;i<len;i++){
+        lcd.print(buf[i]);
+      }
+      Serial.print(latitudeIn);Serial.print(", ");Serial.println(longitudeIn);
+>>>>>>> b0abb52b8c03b930138eef2942bb110f8a04e0a6
       //Serial.print("RSSI: ");
-      //Serial.println(rf95.lastRssi(), DEC);
+      //Serial.println(rf95.lastRssi(), DEC);    
     }
     else
     {
-      Serial.println("Receive failed");
+      //Serial.println("Receive failed");
     }
   }
-  rf95.waitPacketSent();
   //Serial.print(".");
 }

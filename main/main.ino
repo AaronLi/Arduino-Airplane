@@ -15,7 +15,7 @@
 #define SHOW_ORIENTATION 0 // off for flight
 #define SHOW_GPS 0 // off for flight
 #define SHOW_RADIO 0 // off for flight
-#define WAIT_FOR_SERIAL 0 // off for flight
+#define WAIT_FOR_SERIAL 1 // off for flight
 #define WAIT_FOR_RADIO 1 // on for flight
 #define CALIBRATE_ESC 0 // on for flight
 #define PID_ON 0  // on for flight
@@ -337,6 +337,7 @@ void loop()
   }
   pwmDriver.setPWM(THROTTLE, 0, currentThrottle);
   //~~~~~~~~~PLANE TO CONTROLLER COMMUNICATION~~~~~~~~
+  /* USE THIS ONLY WHEN RECEIVING MESSAGE TYPE 1 (GPS FLYING)
   if(radioTimer>millis()) radioTimer = millis();
   if(millis()-radioTimer>1000){ // send radio message every second
     Serial.println("Radio!");
@@ -350,21 +351,27 @@ void loop()
     unsigned long longitudeOut, latitudeOut;
     longitudeOut = (unsigned long)((planeLongitude+180)*1000);
     latitudeOut = (unsigned long)((planeLatitude+90)*1000);
-    data[0]+=(sensor_status<<7)+(radio_status<<6)+(GPS_status<<5);
+    data[0]=(sensor_status<<7)+(radio_status<<6)+(GPS_status<<5);
     data[0]+=(uint8_t)(latitudeOut>>22);
-    data[1]+=(uint8_t)((latitudeOut>>14)&255);
-    data[2]+=(uint8_t)((latitudeOut>>6)&255);
-    data[3]+=(uint8_t)((latitudeOut<<2)&252);
+    data[1]=(uint8_t)((latitudeOut>>14)&255);
+    data[2]=(uint8_t)((latitudeOut>>6)&255);
+    data[3]=(uint8_t)((latitudeOut<<2)&252);
     data[3]+=(uint8_t)(latitudeOut>>24);
-    data[4]+=(uint8_t)((longitudeOut>>16)&255);
-    data[5]+=(uint8_t)((longitudeOut>>8)&255);
-    data[6]+=(uint8_t)(longitudeOut&255);
-    Serial.print("GPS status: ");
-    Serial.println(GPS_status);
-    Serial.println(data[1]);
+    
+    data[4]=(uint8_t)((longitudeOut>>16)&255);
+    data[5]=(uint8_t)((longitudeOut>>8)&255);
+    data[6]=(uint8_t)(longitudeOut&255);
+    Serial.println(latitudeOut);
+    Serial.println(longitudeOut);
+    for(int i = 0;i<sizeof(data);i++){
+      Serial.print(data[i]);
+      Serial.print(" ");
+    }
+    Serial.println();
     rf95.send(data, sizeof(data));
     rf95.waitPacketSent();
   }
+  */
 //~~~~~~~~~~~~SAFE MOTOR OFF~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   if(safetyTimer>millis()) safetyTimer = millis();
   if(millis()-safetyTimer>2000){ //if radio message hasn't been received for 2 seconds
