@@ -67,10 +67,15 @@ void setup()
   lcd.print("Success! ");
   lcd.print((int)RF95_FREQ);
   lcd.print("MHz");
+  lcd.clear();
+  lcd.print("Connecting Plane...");
   Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
   delay(500);
   // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
-
+  Serial.println("Finding Plane");
+  while(!rf95.available()){
+  }
+  Serial.println("Plane Connected");
   // The default transmitter power is 13dBm, using PA_BOOST.
   // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then
   // you can set transmitter powers from 5 to 23 dBm:
@@ -122,7 +127,7 @@ void loop()
   lcd.setCursor(7, 0);
   lcd.print(" Y");
   lcd.print(pitchValue);
-  rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
+  //rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
   if (rf95.available()) {
     // Should be a reply message for us now
     // Now wait for a reply
@@ -135,7 +140,7 @@ void loop()
       latitudeIn += ((buf[3] & 3) << 24) + (buf[4] << 16) + (buf[5] << 8) + buf[6];
       longitudeIn -= 18000000;
       latitudeIn -= 9000000;
-      lcd.setCursor(0, 1);
+      lcd.setCursor(1, 0);
       lcd.print("reply: ");
       lcd.print((char*)buf);
       Serial.print("Received: "); Serial.print(latitudeIn); Serial.print(" "); Serial.println(longitudeIn);

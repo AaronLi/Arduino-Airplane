@@ -209,6 +209,7 @@ void setup()
   Serial.println("Finding rest position of controller...");
   while(!rf95.available()){
   }
+  Serial.println("Controller connected");
   uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
   uint8_t len = sizeof(buf);
   rf95.recv(buf, &len);
@@ -360,6 +361,7 @@ void loop()
     data[6]+=(uint8_t)(longitudeOut&255);
     Serial.print("GPS status: ");
     Serial.println(GPS_status);
+    Serial.println(data[1]);
     rf95.send(data, sizeof(data));
     rf95.waitPacketSent();
   }
