@@ -82,14 +82,6 @@ void setup()
   lcd.print("Connecting Plane...");
   Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
   delay(500);
-  // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
-  Serial.println("Finding Plane");
-  while(!rf95.available()){
-  }
-  Serial.println("Plane Connected");
-  // The default transmitter power is 13dBm, using PA_BOOST.
-  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
-  // you can set transmitter powers from 5 to 23 dBm:
   rf95.setTxPower(23, false);
   lcd.clear();
 }
@@ -124,7 +116,6 @@ void loop()
    }
    else{
     zPressed = false;
-<<<<<<< HEAD
   }
   radiopacket[0] = (messageType << 3) + (throttle << 1) + (rollValue >> 7);
   radiopacket[1] = (rollValue << 1) + (pitchValue >> 7);
@@ -142,7 +133,6 @@ void loop()
   //rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
   if (rf95.available()) {
     // Should be a reply message for us now
-=======
    }
     radiopacket[0] = (messageType<<3)+(throttle<<1)+(rollValue>>7);
     radiopacket[1] = (rollValue<<1)+(pitchValue>>7);
@@ -162,14 +152,12 @@ void loop()
     
     if (rf95.available()){ 
     // Should be a reply message for us now   
->>>>>>> b0abb52b8c03b930138eef2942bb110f8a04e0a6
     // Now wait for a reply
     uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
     uint8_t len = sizeof(buf);
     if (rf95.recv(buf, &len))
    {
       long longitudeIn, latitudeIn;
-<<<<<<< HEAD
       longitudeIn += ((buf[0] & 7) << 22) + (buf[1] << 14) + (buf[2] << 6) + buf[3] >> 2;
       latitudeIn += ((buf[3] & 3) << 24) + (buf[4] << 16) + (buf[5] << 8) + buf[6];
       longitudeIn -= 18000000;
@@ -178,7 +166,6 @@ void loop()
       lcd.print("reply: ");
       lcd.print((char*)buf);
       Serial.print("Received: "); Serial.print(latitudeIn); Serial.print(" "); Serial.println(longitudeIn);
-=======
       longitudeIn+=((buf[0]&7)<<22)+(buf[1]<<14)+(buf[2]<<6)+buf[3]>>2;
       latitudeIn+=((buf[3]&3)<<24)+(buf[4]<<16)+(buf[5]<<8)+buf[6];
       longitudeIn-=18000000;
@@ -188,7 +175,6 @@ void loop()
         lcd.print(buf[i]);
       }
       Serial.print(latitudeIn);Serial.print(", ");Serial.println(longitudeIn);
->>>>>>> b0abb52b8c03b930138eef2942bb110f8a04e0a6
       //Serial.print("RSSI: ");
       //Serial.println(rf95.lastRssi(), DEC);    
     }
