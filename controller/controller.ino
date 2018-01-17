@@ -136,7 +136,6 @@ void loop()
     rf95.send((uint8_t *)radiopacket, PACKET_SIZE);
     rf95.waitPacketSent();
     
-    //delay(10);
     if (rf95.available()){ 
     // Should be a reply message for us now   
     // Now wait for a reply
@@ -147,13 +146,13 @@ void loop()
       long longitudeIn, latitudeIn;
       longitudeIn+=((buf[0]&7)<<22)+(buf[1]<<14)+(buf[2]<<6)+buf[3]>>2;
       latitudeIn+=((buf[3]&3)<<24)+(buf[4]<<16)+(buf[5]<<8)+buf[6];
-      //longitudeIn-=18000000;
-      //latitudeIn-=9000000;
+      longitudeIn-=18000000;
+      latitudeIn-=9000000;
       lcd.setCursor(0,1);
       for(int i = 0;i<len;i++){
         lcd.print(buf[i]);
       }
-      Serial.print("Received: ");Serial.print(latitudeIn);Serial.print(" ");Serial.println(longitudeIn);
+      Serial.print(latitudeIn);Serial.print(", ");Serial.println(longitudeIn);
       //Serial.print("RSSI: ");
       //Serial.println(rf95.lastRssi(), DEC);    
     }

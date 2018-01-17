@@ -336,8 +336,9 @@ void loop()
   }
   pwmDriver.setPWM(THROTTLE, 0, currentThrottle);
   //~~~~~~~~~PLANE TO CONTROLLER COMMUNICATION~~~~~~~~
+  /* USE THIS ONLY WHEN RECEIVING MESSAGE TYPE 1 (GPS FLYING)
   if(radioTimer>millis()) radioTimer = millis();
-  if(millis()-radioTimer>200){ // send radio message every second
+  if(millis()-radioTimer>1000){ // send radio message every second
     Serial.println("Radio!");
     radioTimer = millis();
     //send gps coordinates and sensor status here
@@ -368,6 +369,7 @@ void loop()
     rf95.send(data, sizeof(data));
     rf95.waitPacketSent();
   }
+  */
 //~~~~~~~~~~~~SAFE MOTOR OFF~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   if(safetyTimer>millis()) safetyTimer = millis();
   if(millis()-safetyTimer>2000){ //if radio message hasn't been received for 2 seconds
