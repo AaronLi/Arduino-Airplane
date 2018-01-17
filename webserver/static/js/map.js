@@ -9,7 +9,6 @@ function initMap() {
     mapTypeControl: false
   });
   flightCoordinates = [
-      uluru
     ];
   flightPath = new google.maps.Polyline({
     path: flightCoordinates,
@@ -18,6 +17,9 @@ function initMap() {
     strokeOpacity: 1.0,
     strokeWeight: 3,
   });
+
+  //---device location
+  infoWindow = new google.maps.InfoWindow;
   // Try HTML5 geolocation.
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(function(position) {
@@ -37,14 +39,12 @@ function initMap() {
     // Browser doesn't support Geolocation
     handleLocationError(false, infoWindow, map.getCenter());
   }
-
-
   function handleLocationError(browserHasGeolocation, infoWindow, pos) {
-  infoWindow.setPosition(pos);
-  infoWindow.setContent(browserHasGeolocation ?
-                        'Error: The Geolocation service failed.' :
-                        'Error: Your browser doesn\'t support geolocation.');
-  infoWindow.open(map);
+    infoWindow.setPosition(pos);
+    infoWindow.setContent(browserHasGeolocation ?
+      'Error: The Geolocation service failed.' :
+      'Error: Your browser doesn\'t support geolocation.');
+    infoWindow.open(map);
   }
   flightPath.setMap(map);
   var marker = new google.maps.Marker({
