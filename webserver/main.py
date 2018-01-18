@@ -6,12 +6,15 @@ import tornado.websocket
 import serial
 import serial.tools.list_ports
 import serial.serialutil
+import airplane
 callbackHz = 20
 readData = b""
 ser = None
-client = None#one client to 
+client = None#one client to
+coords = []
+plane = None
 def connectSerial():
-    global ser
+    global ser, plane
     availablePorts = serial.tools.list_ports.comports()
     print("Ports:")
     for i in availablePorts:
@@ -20,6 +23,7 @@ def connectSerial():
         try:
             print("Attempting to connect to port", availablePorts[0].device)
             ser = serial.Serial(availablePorts[0].device, 115200, timeout=1/callbackHz)
+            plane = airplane.Airplane(ser)
             print("\tIsOpen:", ser.is_open, "port:", ser.name)
         except serial.serialutil.SerialException:
             print("\tPort unavailable")
@@ -50,7 +54,12 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print("Message received: ",message)
         smessages = message.split()
         if smessages[0] == 'Position:':
-            coords.append(smessage[1])
+            coords.append(smessages[1])
+        #temp
+        if message != 'Hello!':
+            latLongOut = [float(i) for i in message.replace('(','').replace(')','').split(',')]
+            print(latLongOut)
+            plane.send_gps_coordinate(latLongOut[0],latLongOut[1])
 
 def handleSerial():
     global readData
@@ -60,7 +69,9 @@ def handleSerial():
             if len(readData) != 0:
                 print('dataIn:',readData)
                 if client != None:
-                    client.write_message(readData)
+                    dataIn = str(list(readData[:-2])).replace('[','').replace(']','').replace(',','') #remove the \r\n
+                    print('decoded data:',dataIn,'\n^ compare with hex being written to arduino ^')
+                    client.write_message(dataIn) # bytes represented in decimal
         except serial.serialutil.SerialException:
             #return
             print("Device has probably been disconnected")
