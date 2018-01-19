@@ -11,7 +11,7 @@
 #define RFM95_CS 8
 #define RFM95_RST 9
 #define RFM95_INT 7
-//#define WAIT_FOR_SERIAL
+#define WAIT_FOR_SERIAL
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
 #define PACKET_SIZE 7
@@ -39,33 +39,33 @@ void setup()
   while (!Serial){
     lcd.home();
     lcd.println("Awaiting SerialI");
-    delay(100);
+    delay(200);
     lcd.home();
     lcd.println("Awaiting Serial*");
-    delay(100);
+    delay(200);
   }
   lcd.home();
   lcd.clear();
   #endif
   Serial.begin(115200);
   delay(100);
-
-  Serial.println("Arduino LoRa TX Remote!");
+  
+  Serial.println("+ Arduino LoRa TX Remote initialized!");
   lcd.print("Resetting radio");
   // manual reset
   digitalWrite(RFM95_RST, LOW);
   delay(10);
   digitalWrite(RFM95_RST, HIGH);
   delay(500);
-  Serial.println("Reset radio");
+  Serial.println("| Reset radio");
   lcd.setCursor(0,1);
   while (!rf95.init()) {
-    Serial.println("LoRa radio init failed");
+    Serial.println("| LoRa radio init failed");
     lcd.print("Failed");
     while (1);
   }
   lcd.print("Success!");
-  Serial.println("LoRa radio init OK!");
+  Serial.println("| LoRa radio init OK!");
   delay(500);
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
   lcd.home();
@@ -74,7 +74,7 @@ void setup()
   delay(500);
   lcd.setCursor(0,1);
   if (!rf95.setFrequency(RF95_FREQ)) {
-    Serial.println("setFrequency failed");
+    Serial.println("| setFrequency failed");
     lcd.print("Failed");
     while (1);
   }
@@ -83,7 +83,7 @@ void setup()
   lcd.print("MHz");
   lcd.clear();
   lcd.print("Connecting Plane...");
-  Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
+  Serial.print("| Set Freq to: "); Serial.println(RF95_FREQ);
   delay(500);
   rf95.setTxPower(23, false);
   lcd.clear();
@@ -108,7 +108,7 @@ void loop()
       }
       Serial.readBytesUntil(0,sIn,20);
       Serial.flush();
-      rf95.send((uint8_t)sIn,sizeof(sIn));
+      rf95.send(sIn,sizeof(sIn));
       rf95.waitPacketSent();
       lcd.home();
       lcd.clear();
@@ -129,7 +129,7 @@ void loop()
       uint8_t messageType = 0;
       uint8_t rollValue = map(nck.joystick_x(), 27, 229, 0, 180);
       uint8_t pitchValue = map(nck.joystick_y(),33,225,0,180);
-      pitchValue = 180-pitchValue;
+      //pitchValue = 180-pitchValue;
       if(nck.c_button()){
         if(!cPressed){
           cPressed = true;

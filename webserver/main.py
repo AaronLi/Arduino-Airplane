@@ -66,9 +66,13 @@ def handleSerial():
     if ser != None and ser.is_open:
         try:
             readData = ser.readline()
+            try:
+                readData = readData.decode('utf-8')
+            except UnicodeDecodeError:
+                pass
             if len(readData) != 0:
-                print('dataIn:',readData)
-                if client != None:
+                print('serial:',readData.strip())
+                if client != None and not str(readData)[0] in {"+", "|"}:
                     dataIn = str(list(readData[:-2])).replace('[','').replace(']','').replace(',','') #remove the \r\n
                     print('decoded data:',dataIn,'\n^ compare with hex being written to arduino ^')
                     client.write_message(dataIn) # bytes represented in decimal

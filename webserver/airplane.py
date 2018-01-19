@@ -29,6 +29,8 @@ class Airplane:
             return len(mOut)
         else:
             return -1
+def decode_gps_message(messageIn: list):
+    pass
 if __name__ == "__main__":
     a = Airplane(_sOut.Serial())
     a.send_gps_coordinate(12.34567,76.54321,True)
