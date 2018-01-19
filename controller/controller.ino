@@ -11,7 +11,7 @@
 #define RFM95_CS 8
 #define RFM95_RST 9
 #define RFM95_INT 7
-#define WAIT_FOR_SERIAL
+//#define WAIT_FOR_SERIAL
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
 #define PACKET_SIZE 7
@@ -56,7 +56,7 @@ void setup()
   digitalWrite(RFM95_RST, LOW);
   delay(10);
   digitalWrite(RFM95_RST, HIGH);
-  delay(500);
+  //delay(500);
   Serial.println("| Reset radio");
   lcd.setCursor(0,1);
   while (!rf95.init()) {
@@ -66,12 +66,12 @@ void setup()
   }
   lcd.print("Success!");
   Serial.println("| LoRa radio init OK!");
-  delay(500);
+  //delay(500);
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
   lcd.home();
   lcd.clear();
   lcd.print("Setting freq");
-  delay(500);
+  //delay(500);
   lcd.setCursor(0,1);
   if (!rf95.setFrequency(RF95_FREQ)) {
     Serial.println("| setFrequency failed");
@@ -84,7 +84,7 @@ void setup()
   lcd.clear();
   lcd.print("Connecting Plane...");
   Serial.print("| Set Freq to: "); Serial.println(RF95_FREQ);
-  delay(500);
+  //delay(500);
   rf95.setTxPower(23, false);
   lcd.clear();
 }

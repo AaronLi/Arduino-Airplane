@@ -66,7 +66,7 @@ uint8_t radio_status = 0;
 uint8_t noRollTime, noPitchTime;
 bool ledState = false;
 int sensorHz = 10;
-int motorSpeeds[] = {90,155,354,364}; // testing values for safety purposes
+int motorSpeeds[] = {155,354,364,374}; // testing values for safety purposes
 int throttleTarget = 0;
 int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
