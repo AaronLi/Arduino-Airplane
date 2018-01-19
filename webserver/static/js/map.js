@@ -18,6 +18,7 @@ function initMap() {
     strokeWeight: 3,
   });
 
+
   //---device location
   infoWindow = new google.maps.InfoWindow;
   // Try HTML5 geolocation.
@@ -50,16 +51,19 @@ function initMap() {
     position: uluru,
     map: map
   });
+  //end device location
+
+
   google.maps.event.addListener(map, 'click', function(e){
     console.log('Position:', e.latLng.toString());
 
     comSock.send(e.latLng.toString());
+    
     var marker = new google.maps.Marker({
       position: e.latLng,
       map: map
     });
     var path = flightPath.getPath();
     path.push(e.latLng);
-    console.log(path);
-  })  
+  })
 }
