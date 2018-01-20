@@ -143,6 +143,7 @@ void loop()
     uint8_t len = sizeof(buf);
     if (rf95.recv(buf, &len))
    {
+      Serial.println("Message Received!");
       long longitudeIn, latitudeIn;
       longitudeIn+=((buf[0]&7)<<22)+(buf[1]<<14)+(buf[2]<<6)+buf[3]>>2;
       latitudeIn+=((buf[3]&3)<<24)+(buf[4]<<16)+(buf[5]<<8)+buf[6];
