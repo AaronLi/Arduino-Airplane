@@ -40,8 +40,9 @@
 //Outputs
 #define LED 13
 #define LEFT_AILERON 0
-#define RIGHT_AILERON 2
-#define ELEVATOR 15
+#define RIGHT_AILERON 15
+#define ELEVATOR 8
+#define RUDDER 10
 #define THROTTLE 6
 
 //<155 propeller braking?
