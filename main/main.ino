@@ -36,8 +36,8 @@
 #define AILERONMIN 195
 #define ELEVATORMAX 175 // Actual max is 176
 #define ELEVATORMIN 95
-#define RUDDERMIN -90
-#define RUDDERMAX 90
+#define RUDDERMAX 175
+#define RUDDERMIN 95
 
 //Outputs
 #define LED 13
@@ -259,9 +259,9 @@ void loop()
           Serial.print(throttleValue);
           Serial.print(", PWM: ");
           Serial.print(motorSpeeds[throttleValue]);
-          Serial.print(", Pitch: ");
-          Serial.print(aileronValue);
           Serial.print(", Roll: ");
+          Serial.print(aileronValue);
+          Serial.print(", Pitch: ");
           Serial.print(elevatorValue);
           Serial.print(", Yaw: ");
           Serial.println(yawValue);
