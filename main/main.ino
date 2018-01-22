@@ -36,8 +36,8 @@
 #define AILERONMIN 195
 #define ELEVATORMAX 175 // Actual max is 176
 #define ELEVATORMIN 95
-#define RUDDERMIN 0
-#define RUDDERMAX 180
+#define RUDDERMIN -90
+#define RUDDERMAX 90
 
 //Outputs
 #define LED 13

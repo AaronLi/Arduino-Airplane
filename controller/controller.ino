@@ -129,7 +129,7 @@ void loop()
     uint8_t messageType = 0;
     uint8_t yawValue = map(nck.joystick_x(), 27, 229, 0, 180);//TODO: switch with roll
     uint8_t pitchValue = map(nck.joystick_y(), 33, 225, 0, 180);
-    uint8_t rollValue = map(nck.x_acceleration(), 300, 700, 0, 180);
+    uint8_t rollValue = map(nck.x_acceleration(), 250, 750, 0, 180);
     //pitchValue = 180-pitchValue;
     if (nck.c_button()) {
       if (!cPressed) {
