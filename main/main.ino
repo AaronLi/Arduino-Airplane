@@ -13,15 +13,9 @@
 
 //Config
 #define SHOW_ORIENTATION 0 // off for flight
-<<<<<<< HEAD
 #define SHOW_GPS 1 // off for flight
 #define SHOW_RADIO 1 // off for flight
-#define WAIT_FOR_SERIAL 1 // off for flight
-=======
-#define SHOW_GPS 0 // off for flight
-#define SHOW_RADIO 0 // off for flight
 #define WAIT_FOR_SERIAL 0 // off for flight
->>>>>>> 21a414cd40e1c5ff4c86713d6a6e3373ee0630ff
 #define WAIT_FOR_RADIO 1 // on for flight
 #define CALIBRATE_ESC 0 // on for flight
 #define PID_ON 0  // on for flight
@@ -47,8 +41,8 @@
 #define LED 13
 #define LEFT_AILERON 0
 #define RIGHT_AILERON 15
-#define ELEVATOR 8
-#define RUDDER 10
+#define ELEVATOR 10
+#define RUDDER 8
 #define THROTTLE 6
 
 //<155 propeller braking?
