@@ -17,12 +17,18 @@ void setup()
 
 void loop()
 {
+  nck.update();
   if (nck.z_button()) {
-    Serial.println("z")
+    if (!zPressed) {
+      Serial.println("z");
+    }
+    else {
+      zPressed = false;
+    }
   }
-  Serial.print(nck.x_acceleration);
+  Serial.print(nck.x_acceleration());
   Serial.print("     ");
-  Serial.print(nck.x_acceleration);  
+  Serial.print(nck.y_acceleration());
   Serial.print("     ");
-  Serial.print(nck.x_acceleration);  
+  Serial.print(nck.z_acceleration());
 }

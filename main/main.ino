@@ -36,6 +36,8 @@
 #define AILERONMIN 195
 #define ELEVATORMAX 175 // Actual max is 176
 #define ELEVATORMIN 95
+#define RUDDERMIN 0
+#define RUDDERMAX 180
 
 //Outputs
 #define LED 13
@@ -71,7 +73,7 @@ int motorSpeeds[] = {155,354,364,374}; // testing values for safety purposes
 int throttleTarget = 0;
 int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
-double rollValue, rollSetpoint, aileronValue; // used for roll based PID
+double rollValue, rollSetpoint, aileronValue,yawValue; // used for roll based PID
 double pitchValue, pitchSetpoint, elevatorValue;
 float planeLongitude, planeLatitude;
 #if PID_ON == 1 && DUMB_STABILIZE == 0
@@ -84,8 +86,7 @@ struct ManualRadioOut{
   uint8_t throttleValue;
   uint8_t rollValue;
   uint8_t pitchValue;
-  uint8_t peripheral1Type;
-  uint8_t peripheral2Type;
+  uint8_t yawValue;
 };
 ManualRadioOut lastManualMessage;
 void writeServo(int channel,int angle){
@@ -101,14 +102,17 @@ void writeElevator(int angle){
   int writeAngle = map(angle,0,180,ELEVATORMIN, ELEVATORMAX);
   pwmDriver.setPWM(ELEVATOR,0,writeAngle);
 }
+void writeRudder(int angle){
+  int writeAngle = map(angle,0,180,RUDDERMIN, RUDDERMAX);
+  pwmDriver.setPWM(RUDDER,0,writeAngle);
+}
 ManualRadioOut readRadioMessage(uint8_t buf[]){
           uint8_t mType = buf[0]>>3;
           uint8_t throttleValue = (buf[0]&6)>>1;
           uint8_t rollValue = (double)((buf[0]&1)<<7)+(buf[1]>>1);
           uint8_t pitchValue = ((buf[1]&1)<<7)+(buf[2]>>1);
-          uint8_t peripheral1Type = buf[2]&1;
-          uint8_t peripheral2Type = (buf[3]&4)>>2;
-          return ManualRadioOut{mType, throttleValue, rollValue, pitchValue, peripheral1Type, peripheral2Type};
+          uint8_t yawValue = ((buf[2]&1)<<7) + ((buf[3])>>1);
+          return ManualRadioOut{mType, throttleValue, rollValue, pitchValue, yawValue};
 }
 void notifyUser(){
 }
@@ -243,12 +247,11 @@ void loop()
       switch(mType){
         case 0: //will be changed once full program is outlined
           lastManualMessage= readRadioMessage(buf);
-          uint8_t throttleValue, peripheral1Type, peripheral2Type;
+          uint8_t throttleValue;
           throttleValue = lastManualMessage.throttleValue;
           aileronValue = (double)lastManualMessage.rollValue;
           elevatorValue = (double)lastManualMessage.pitchValue;
-          peripheral1Type= lastManualMessage.peripheral1Type;
-          peripheral2Type = lastManualMessage.peripheral2Type;
+          yawValue = (double)lastManualMessage.yawValue;
           throttleTarget = motorSpeeds[lastManualMessage.throttleValue];
           safetyTimer = millis();
           #if SHOW_RADIO == 1
@@ -259,7 +262,9 @@ void loop()
           Serial.print(", Pitch: ");
           Serial.print(aileronValue);
           Serial.print(", Roll: ");
-          Serial.println(elevatorValue);
+          Serial.print(elevatorValue);
+          Serial.print(", Yaw: ");
+          Serial.println(yawValue);
           #endif
           break;
          case 1:
@@ -449,6 +454,7 @@ void loop()
   //Serial.println("After PID");
   writeAileron((int)aileronValue);
   writeElevator((int)elevatorValue);
+  writeRudder((int)yawValue);
   //Serial.println(currentThrottle);
   if(ledTimer>millis()) ledTimer = millis();
   if(millis()-ledTimer>1000){//blink led to show program is running
