@@ -13,8 +13,8 @@
 
 //Config
 #define SHOW_ORIENTATION 0 // off for flight
-#define SHOW_GPS 0 // off for flight
-#define SHOW_RADIO 0 // off for flight
+#define SHOW_GPS 1 // off for flight
+#define SHOW_RADIO 1 // off for flight
 #define WAIT_FOR_SERIAL 1 // off for flight
 #define WAIT_FOR_RADIO 1 // on for flight
 #define CALIBRATE_ESC 0 // on for flight

@@ -70,8 +70,9 @@ def handleSerial():
                 print('<<<<<<<<<<<<<<<<dataIn:',readData)
                 if client != None:
                     dataIn = str(list(readData[:-2])).replace('[','').replace(']','').replace(',','') #remove the \r\n
+                    dataIn = [bin(int(i))[2:] for i in dataIn.split()]
                     print('<<<<<<<<<<<<<<<<decoded data:',dataIn,'\n^ compare with hex being written to arduino ^')
-                    client.write_message(dataIn) # bytes represented in decimal
+                    #client.write_message(dataIn) # bytes represented in decimal
         except serial.serialutil.SerialException:
             #return
             print("<<<<<<<<<<<<<<<<Device has probably been disconnected")
