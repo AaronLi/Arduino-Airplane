@@ -13,9 +13,15 @@
 
 //Config
 #define SHOW_ORIENTATION 0 // off for flight
+<<<<<<< HEAD
 #define SHOW_GPS 1 // off for flight
 #define SHOW_RADIO 1 // off for flight
 #define WAIT_FOR_SERIAL 1 // off for flight
+=======
+#define SHOW_GPS 0 // off for flight
+#define SHOW_RADIO 0 // off for flight
+#define WAIT_FOR_SERIAL 0 // off for flight
+>>>>>>> 21a414cd40e1c5ff4c86713d6a6e3373ee0630ff
 #define WAIT_FOR_RADIO 1 // on for flight
 #define CALIBRATE_ESC 0 // on for flight
 #define PID_ON 0  // on for flight
@@ -40,8 +46,9 @@
 //Outputs
 #define LED 13
 #define LEFT_AILERON 0
-#define RIGHT_AILERON 2
-#define ELEVATOR 15
+#define RIGHT_AILERON 15
+#define ELEVATOR 8
+#define RUDDER 10
 #define THROTTLE 6
 
 //<155 propeller braking?
@@ -66,7 +73,7 @@ uint8_t radio_status = 0;
 uint8_t noRollTime, noPitchTime;
 bool ledState = false;
 int sensorHz = 10;
-int motorSpeeds[] = {90,155,354,364}; // testing values for safety purposes
+int motorSpeeds[] = {155,354,364,374}; // testing values for safety purposes
 int throttleTarget = 0;
 int currentThrottle = 0;
 uint8_t defaultPitch, defaultRoll; //values of the joystick when it isn't being touched
@@ -160,6 +167,7 @@ void setup()
   delay(5000);
   #endif
   Serial.begin(115200);
+  Serial.println("+Plane initialized!");
   //~~~~~~~~~~~~~~~~~~~~~~~~START GPS~~~~~~~~~~~~~~~~~~~~
   GPS.begin(9600);
   mySerial.begin(9600);
@@ -176,40 +184,40 @@ void setup()
   delay(10);
 
   while (!rf95.init()) {
-    Serial.println("LoRa radio init failed");
+    Serial.println("| LoRa radio init failed");
     while (1);
   }
-  Serial.println("LoRa radio init OK!");
+  Serial.println("| LoRa radio init OK!");
   delay(100);
   if (!rf95.setFrequency(RF95_FREQ)) {
-    Serial.println("setFrequency failed");
+    Serial.println("| setFrequency failed");
     while (1);
   }
-  Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
+  Serial.print("| Set Freq to: "); Serial.println(RF95_FREQ);
   rf95.setTxPower(23, false);
   //~~~~~~~~~~START SENSOR ARRAY~~~~~~~~~~~~~~
-  Serial.println("Starting sensor array...");
+  Serial.println("| Starting sensor array...");
   delay(100);
   if (!lsm.begin()){
-    Serial.println("Oops ... unable to initialize the LSM9DS1. Check your wiring!");
+    Serial.println("| Oops ... unable to initialize the LSM9DS1. Check your wiring!");
     while (1);
   }
-  Serial.println("Found LSM9DS1 9DOF");
+  Serial.println("| Found LSM9DS1 9DOF");
   setupSensor();
   pwmDriver.begin();
   pwmDriver.setPWMFreq(50);
   setupPID();
   #if CALIBRATE_ESC == 1
-  Serial.println("Calibrating ESC...");
+  Serial.println("| Calibrating ESC...");
   calibrateESC();
-  Serial.println("ESC calibrated");
+  Serial.println("| ESC calibrated");
   #endif
   safetyTimer = millis();
   #if WAIT_FOR_RADIO == 1
-  Serial.println("Finding rest position of controller...");
+  Serial.println("| Finding rest position of controller...");
   while(!rf95.available()){
   }
-  Serial.println("Controller connected");
+  Serial.println("| Controller connected");
   uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
   uint8_t len = sizeof(buf);
   rf95.recv(buf, &len);
@@ -241,11 +249,12 @@ void loop()
       switch(mType){
         case 0: //will be changed once full program is outlined
           lastManualMessage= readRadioMessage(buf);
-          uint8_t throttleValue = lastManualMessage.throttleValue;
+          uint8_t throttleValue, peripheral1Type, peripheral2Type;
+          throttleValue = lastManualMessage.throttleValue;
           aileronValue = (double)lastManualMessage.rollValue;
           elevatorValue = (double)lastManualMessage.pitchValue;
-          uint8_t peripheral1Type = lastManualMessage.peripheral1Type;
-          uint8_t peripheral2Type = lastManualMessage.peripheral2Type;
+          peripheral1Type= lastManualMessage.peripheral1Type;
+          peripheral2Type = lastManualMessage.peripheral2Type;
           throttleTarget = motorSpeeds[lastManualMessage.throttleValue];
           safetyTimer = millis();
           #if SHOW_RADIO == 1
@@ -258,6 +267,10 @@ void loop()
           Serial.print(", Roll: ");
           Serial.println(elevatorValue);
           #endif
+          break;
+         case 1:
+          Serial.println("GPS Received");
+          safetyTimer = millis();
           break;
       }
       #if SHOW_RADIO == 1
