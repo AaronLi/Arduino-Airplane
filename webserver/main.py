@@ -73,15 +73,12 @@ def handleSerial():
             if len(readData) != 0:
                 print('serial:',readData.strip())
                 if client != None and not str(readData)[0] in {"+", "|"}:
-                    dataIn = str(list(readData[:-2])).replace('[','').replace(']','').replace(',','') #remove the \r\n
-<<<<<<< HEAD
-                    dataIn = [bin(int(i))[2:] for i in dataIn.split()]
-                    print('<<<<<<<<<<<<<<<<decoded data:',dataIn,'\n^ compare with hex being written to arduino ^')
-                    #client.write_message(dataIn) # bytes represented in decimal
-=======
+                    dataIn = [i for i in readData[:-2]]
                     print('decoded data:',dataIn,'\n^ compare with hex being written to arduino ^')
-                    client.write_message(dataIn) # bytes represented in decimal
->>>>>>> 21a414cd40e1c5ff4c86713d6a6e3373ee0630ff
+                    print(airplane.decode_gps_message(dataIn))
+
+                    webSocketOut = ' '.join([str(int(i)) for i in dataIn])
+                    client.write_message(webSocketOut) # bytes represented in decimal
         except serial.serialutil.SerialException:
             #return
             print("Device has probably been disconnected")

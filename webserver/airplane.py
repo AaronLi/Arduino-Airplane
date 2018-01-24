@@ -30,7 +30,16 @@ class Airplane:
         else:
             return -1
 def decode_gps_message(messageIn: list):
-    pass
+    messageType = messageIn[0]>>3
+    latitude = (messageIn[0]&7)<<22
+    latitude+= messageIn[1]<<14
+    latitude+=messageIn[2]<<6
+    latitude+=messageIn[3]>>2
+    longitude = (messageIn[3]&3)<<24
+    longitude += messageIn[4]<<16
+    longitude += messageIn[5]<<8
+    longitude += messageIn[6]
+    return [messageType, (latitude-9000000)/100000, (longitude-18000000)/100000]
 if __name__ == "__main__":
     a = Airplane(_sOut.Serial())
     a.send_gps_coordinate(12.34567,76.54321,True)
